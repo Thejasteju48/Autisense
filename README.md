@@ -1,6 +1,8 @@
-# Autism Screening & Support Web Application
+# Autisense
 
-A comprehensive full-stack web application for early autism screening in toddlers and children (1-6 years). This application combines video analysis, audio assessment, and behavioral questionnaires to provide parents with insights about their child's development.
+**An Intelligent Web System for Early Detection of Autism**
+
+A comprehensive full-stack web application for early autism screening in children aged 12-72 months (1-6 years). Autisense combines AI-powered video analysis, interactive games, and behavioral assessments to provide parents with insights about their child's development.
 
 ## ⚠️ Important Disclaimer
 
@@ -130,15 +132,21 @@ AutismProject/
 cd backend
 npm install
 
-# Create .env file
+# Create .env file from example
 cp .env.example .env
 
-# Edit .env with your configuration
-# PORT=5000
-# MONGODB_URI=mongodb://localhost:27017/autism_screening
-# JWT_SECRET=your_secret_key
-# ML_SERVICE_URL=http://localhost:8000
+# Edit .env with your configuration:
+# 1. Set MONGODB_URI to your MongoDB Atlas connection string
+# 2. Generate a secure JWT_SECRET (use: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
+# 3. Update ML_SERVICE_URL if needed
 ```
+
+**Required Environment Variables:**
+- `MONGODB_URI` - Your MongoDB Atlas connection string
+- `JWT_SECRET` - A secure random string (64+ characters)
+- `ML_SERVICE_URL` - URL of the ML service (default: http://localhost:8000)
+
+See [SECURITY.md](SECURITY.md) for detailed setup instructions.
 
 #### 2. ML Service Setup
 
@@ -152,9 +160,17 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Create .env file
+# Create .env file from example
 cp .env.example .env
+
+# Edit .env and add your GROQ API key
+# Get your API key from: https://console.groq.com
 ```
+
+**Required Environment Variables:**
+- `GROQ_API_KEY` - Your GROQ API key for AI predictions
+
+See [SECURITY.md](SECURITY.md) for detailed setup instructions.
 
 #### 3. Frontend Setup
 
