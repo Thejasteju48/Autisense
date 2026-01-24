@@ -76,34 +76,16 @@ export const childrenAPI = {
 
 // Screening APIs
 export const screeningAPI = {
-  start: (childId) => api.post('/screenings/start', { childId }),
-  processEyeContact: (screeningId, frames, duration) => 
-    api.post(`/screenings/${screeningId}/eye-contact`, { frames, duration }),
-  processGesture: (screeningId, frames, duration) => 
-    api.post(`/screenings/${screeningId}/gesture`, { frames, duration }),
-  processSmile: (screeningId, frames, duration) => 
-    api.post(`/screenings/${screeningId}/smile`, { frames, duration }),
-  processRepetitive: (screeningId, frames, duration) => 
-    api.post(`/screenings/${screeningId}/repetitive`, { frames, duration }),
-  processImitation: (screeningId, frames, duration) => 
-    api.post(`/screenings/${screeningId}/imitation`, { frames, duration }),
-  submitQuestionnaire: (screeningId, responses) => 
-    api.post(`/screenings/${screeningId}/questionnaire`, { responses }),
+  start: (childId, type = 'Live Video') => api.post('/screenings/start', { childId, type }),
+  
+  submitQuestionnaire: (screeningId, data) => 
+    api.post(`/screenings/${screeningId}/questionnaire`, data),
   complete: (screeningId) => api.post(`/screenings/${screeningId}/complete`),
   getOne: (screeningId) => api.get(`/screenings/${screeningId}`),
   getByChild: (childId) => api.get(`/screenings/child/${childId}`),
   getLatest: (childId) => api.get(`/screenings/child/${childId}/latest`),
   downloadReport: (screeningId) => 
     api.get(`/screenings/${screeningId}/report`, { responseType: 'blob' }),
-};
-
-// Games APIs
-export const gamesAPI = {
-  getAll: () => api.get('/games'),
-  recordSession: (data) => api.post('/games/session', data),
-  getChildSessions: (childId, gameType) => 
-    api.get(`/games/child/${childId}/sessions`, { params: { gameType } }),
-  getStats: (childId) => api.get(`/games/child/${childId}/stats`),
 };
 
 export default api;

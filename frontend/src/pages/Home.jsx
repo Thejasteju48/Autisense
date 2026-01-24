@@ -19,23 +19,23 @@ const Home = () => {
   const features = [
     {
       icon: SparklesIcon,
-      title: '5 Interactive Games',
-      description: 'Eye contact detection, smile recognition, gesture imitation, repetitive behavior tracking, and copying tasks - all through fun, engaging activities.'
+      title: 'Live Video Analysis',
+      description: 'Real-time behavioral assessment using AI-powered video processing. Monitors 7 key behavioral indicators through webcam (no recording/storage).'
     },
     {
       icon: ShieldCheckIcon,
       title: 'Evidence-Based Assessment',
-      description: 'Uses validated behavioral markers from M-CHAT-R and clinical autism screening protocols, analyzing eye contact, social responsiveness, and imitation.'
+      description: 'Based on DSM-5 autism diagnostic criteria and M-CHAT-R protocols. Analyzes eye contact, blink patterns, head movements, hand flapping, body rocking, face orientation, and emotional stability.'
     },
     {
       icon: ChartBarIcon,
-      title: 'Comprehensive Reports',
-      description: 'Detailed analysis of each interaction with risk scoring (Low/Moderate/High), personalized insights, and professional recommendations.'
+      title: 'Professional Reports',
+      description: 'Comprehensive risk assessment (Low/Moderate/High) with feature breakdown, confidence scores, and personalized clinical recommendations.'
     },
     {
       icon: ClockIcon,
-      title: 'Just 3 Minutes',
-      description: 'Complete screening in one session - 5 games totaling ~3 minutes. No uploads, no questionnaires during play, just natural child interaction.'
+      title: '2-4 Minutes Assessment',
+      description: 'Quick and efficient screening session. Live video analysis combined with clinical questionnaire for accurate results.'
     },
     {
       icon: UserGroupIcon,
@@ -45,7 +45,7 @@ const Home = () => {
     {
       icon: CheckCircleIcon,
       title: 'Privacy First',
-      description: 'All assessments happen in-browser using webcam. No video uploads required. Your child\'s data stays secure and private.'
+      description: 'No video recording or storage. Real-time analysis only transmits numeric behavioral features. Your child\'s privacy is fully protected.'
     }
   ];
 
@@ -92,7 +92,7 @@ const Home = () => {
             An Intelligent Web System for Early Detection of Autism
           </p>
           <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-            Interactive <strong>3-minute assessment</strong> for children aged 12-72 months. Your child plays 5 engaging games while our AI analyzes key autism markers: eye contact, smiles, gestures, repetitive behaviors, and imitation. Get instant risk assessment and recommendations.
+            Professional <strong>video behavior assessment</strong> for children aged 12-72 months. Our AI analyzes real-time video to detect 7 key autism markers: eye contact patterns, blink rate, head movements, hand flapping, body rocking, face orientation, and emotional stability. Get instant risk assessment with clinical recommendations.
           </p>
           <div className="flex justify-center space-x-4">
             <Link to="/register">
@@ -117,12 +117,12 @@ const Home = () => {
             <p className="text-lg text-purple-100 mb-6 leading-relaxed">
               Early identification of autism spectrum disorder (ASD) is crucial for ensuring children receive timely 
               interventions that can significantly improve developmental outcomes. Our platform provides an accessible, 
-              engaging screening tool that helps parents identify potential early signs of autism in children aged 18 months to 5 years.
+              professional screening system that helps parents identify potential early signs of autism in children aged 12 months to 6 years.
             </p>
             <p className="text-lg text-purple-100 mb-6 leading-relaxed">
-              Through interactive games designed by developmental specialists, we assess key behavioral markers including 
-              eye contact, social responsiveness, gesture recognition, and imitation skills. Our screening process is 
-              designed to be comfortable for children while providing parents with valuable insights.
+              Through advanced real-time video analysis powered by MediaPipe AI, we assess 7 key behavioral markers including 
+              eye contact patterns, repetitive movements, social responsiveness, and emotional regulation. Our screening process 
+              is non-invasive, requires no video storage, and provides immediate professional-grade assessment.
             </p>
             <div className="bg-white border-l-4 border-purple-300 p-6 rounded-r-lg">
               <p className="text-purple-900 font-semibold">
@@ -174,8 +174,8 @@ const Home = () => {
                   2
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Complete Interactive Games</h3>
-                  <p className="text-gray-700">Your child plays 5 engaging games designed to assess key developmental behaviors naturally.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Live Video Assessment</h3>
+                  <p className="text-gray-700">Our AI analyzes your child's behavior in real-time through webcam (no recording). Takes 2-4 minutes with parent guidance.</p>
                 </div>
               </div>
 

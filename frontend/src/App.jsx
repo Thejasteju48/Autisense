@@ -8,14 +8,9 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ChildProfile from './pages/ChildProfile';
 import AddChild from './pages/AddChild';
-import Screening from './pages/Screening';
-import InteractiveScreening from './pages/InteractiveScreening';
 import ScreeningFlow from './pages/ScreeningFlow';
 import ScreeningResults from './pages/ScreeningResults';
-import Games from './pages/Games';
 import History from './pages/History';
-import TestEyeContact from './pages/TestEyeContact';
-import TestGame1 from './pages/TestGame1';
 
 // Layout
 import Layout from './components/Layout';
@@ -37,10 +32,6 @@ function App() {
       <Route path="/" element={!user ? <Home /> : <Navigate to="/dashboard" />} />
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
       <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
-      
-      {/* Test routes - No auth required */}
-      <Route path="/test-eye-contact" element={<TestEyeContact />} />
-      <Route path="/test-game1" element={<TestGame1 />} />
 
       {/* Protected routes */}
       <Route element={user ? <Layout /> : <Navigate to="/login" />}>
@@ -48,10 +39,7 @@ function App() {
         <Route path="children/add" element={<AddChild />} />
         <Route path="children/:id" element={<ChildProfile />} />
         <Route path="screening/:childId" element={<ScreeningFlow />} />
-        <Route path="screening-interactive/:childId" element={<InteractiveScreening />} />
-        <Route path="screening-old/:childId" element={<Screening />} />
         <Route path="screening/:screeningId/results" element={<ScreeningResults />} />
-        <Route path="games/:childId" element={<Games />} />
         <Route path="history/:childId" element={<History />} />
       </Route>
 

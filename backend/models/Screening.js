@@ -4,142 +4,94 @@ const screeningSchema = new mongoose.Schema({
   child: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Child',
-    required: true,
+    required: false,  // Optional for video-behavior-analysis
     index: true
   },
-  parent: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
     index: true
   },
+  parent: {  // Alias for backward compatibility
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   
-  // Interactive Game 1: Eye Contact Detection
-  // Extracted during "Look at the Character" game
-  eyeContactInteraction: {
-    completed: {
-      type: Boolean,
-      default: false
-    },
+  // Screening Type
+  type: {
+    type: String,
+    enum: ['Live Video', 'video-behavior-analysis'],
+    default: 'Live Video'
+  },
+  
+  // Live Video Features (7 behavioral markers)
+  liveVideoFeatures: {
     eyeContactRatio: {
       type: Number,
       min: 0,
       max: 1
     },
-    averageEAR: Number,              // Eye Aspect Ratio average
-    alignmentScore: Number,          // Nose-to-eye center alignment
-    totalFrames: Number,
-    contactFrames: Number,
-    confidence: {
-      type: Number,
-      min: 0,
-      max: 1
+    blinkRatePerMinute: Number,
+    headMovementRate: Number,
+    headRepetitiveMovement: {
+      detected: Boolean,
+      oscillations: Number,
+      horizontal: Number,
+      vertical: Number
     },
-    interpretation: String,
-    duration: Number,                // seconds
-    completedAt: Date
+    handRepetitiveMovement: {
+      leftHand: {
+        detected: Boolean,
+        oscillations: Number,
+        intensity: Number
+      },
+      rightHand: {
+        detected: Boolean,
+        oscillations: Number,
+        intensity: Number
+      }
+    },
+    gestureFrequencyPerMinute: Number,
+    facialExpressionVariability: Number,
+    sessionDuration: Number,
+    totalFrames: Number,
+    interpretation: {
+      concerns: [String],
+      riskScore: Number,
+      summary: String
+    }
   },
   
-  // Interactive Game 2: Gesture Detection
-  // Extracted during "Wave at the Character" game
-  gestureInteraction: {
-    completed: {
-      type: Boolean,
-      default: false
-    },
-    gestureFrequency: Number,        // number of gestures detected
-    waveCount: Number,
-    pointCount: Number,
-    handMovementScore: Number,
-    totalFrames: Number,
-    confidence: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    interpretation: String,
-    duration: Number,
-    completedAt: Date
+  // Video Behavior Analysis Fields (OLD - for backward compatibility)
+  videoBehaviorScore: {
+    type: Number,
+    min: 0,
+    max: 100
   },
-  
-  // Interactive Game 3: Smile Detection
-  // Extracted during "Make the Character Happy" game
-  smileInteraction: {
-    completed: {
-      type: Boolean,
-      default: false
-    },
-    smileRatio: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    smileFrequency: Number,          // number of distinct smiles
-    mouthAspectRatio: Number,        // average MAR
-    totalFrames: Number,
-    smileFrames: Number,
-    confidence: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    interpretation: String,
-    duration: Number,
-    completedAt: Date
+  questionnaireScore: {
+    type: Number,
+    min: 0,
+    max: 100
   },
-  
-  // Interactive Game 4: Repetitive Behavior Detection
-  // Extracted during free-play interaction with moving object
-  repetitiveInteraction: {
-    completed: {
-      type: Boolean,
-      default: false
-    },
-    repetitiveRatio: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    oscillationCount: Number,        // number of oscillatory motions
-    motionRange: Number,             // range of motion
-    patternScore: Number,
-    totalFrames: Number,
-    confidence: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    interpretation: String,
-    duration: Number,
-    completedAt: Date
+  combinedScore: {
+    type: Number,
+    min: 0,
+    max: 100
   },
-  
-  // Interactive Game 5: Imitation Ability
-  // Extracted during "Copy the Friend" game
-  imitationInteraction: {
-    completed: {
-      type: Boolean,
-      default: false
-    },
-    imitationScore: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    successfulImitations: Number,    // number of successful imitations
-    totalAttempts: Number,           // total number of attempts (usually 4)
-    averageDelay: Number,            // average response delay in ms
-    similarityScore: Number,         // motion similarity score
-    totalFrames: Number,
-    confidence: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    interpretation: String,
-    duration: Number,
-    completedAt: Date
+  riskClassification: String,  // LOW, MODERATE, HIGH
+  featureAnalysis: mongoose.Schema.Types.Mixed,  // Detailed feature scores
+  recommendations: [{
+    priority: String,
+    category: String,
+    text: String
+  }],
+  confidence: {
+    type: Number,
+    min: 0,
+    max: 100
   },
+  metadata: mongoose.Schema.Types.Mixed,  // Session info, timestamps, etc.
   
   // Questionnaire (Parent-filled)
   questionnaire: {
@@ -150,12 +102,21 @@ const screeningSchema = new mongoose.Schema({
     responses: [{
       questionId: Number,
       question: String,
-      answer: Boolean
+      answer: Boolean,
+      _id: false  // Disable automatic _id for subdocuments
     }],
     score: {
       type: Number,
       min: 0,
       max: 1
+    },
+    jaundice: {
+      type: String,
+      enum: ['yes', 'no']
+    },
+    family_asd: {
+      type: String,
+      enum: ['yes', 'no']
     }
   },
   
@@ -173,13 +134,10 @@ const screeningSchema = new mongoose.Schema({
   // Interpretation & Recommendations
   interpretation: {
     summary: String,
-    eyeContactInsights: String,
-    smileInsights: String,
-    gestureInsights: String,
-    repetitiveInsights: String,
-    imitationInsights: String,
-    questionnaireInsights: String,
-    recommendations: [String]
+    confidence: Number,
+    liveVideoSummary: String,
+    recommendations: [String],
+    llmAnalysis: String  // LLM-generated comprehensive analysis from Groq
   },
   
   // Report
@@ -205,18 +163,6 @@ const screeningSchema = new mongoose.Schema({
 screeningSchema.index({ child: 1, createdAt: -1 });
 screeningSchema.index({ parent: 1, createdAt: -1 });
 screeningSchema.index({ status: 1, createdAt: -1 });
-
-// Method to check if all interactions are completed
-screeningSchema.methods.allInteractionsCompleted = function() {
-  return (
-    this.eyeContactInteraction?.completed &&
-    this.smileInteraction?.completed &&
-    this.gestureInteraction?.completed &&
-    this.repetitiveInteraction?.completed &&
-    this.imitationInteraction?.completed &&
-    this.questionnaire?.completed
-  );
-};
 
 // Method to calculate risk level from score
 screeningSchema.methods.calculateRiskLevel = function() {

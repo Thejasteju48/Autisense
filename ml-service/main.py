@@ -3,17 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import numpy as np
-from services.eye_contact_analyzer import EyeContactAnalyzer
-from services.gesture_analyzer import GestureAnalyzer
-from services.smile_analyzer import SmileAnalyzer
-from services.repetitive_analyzer import RepetitiveAnalyzer
-from services.imitation_analyzer import ImitationAnalyzer
+import os
+from dotenv import load_dotenv
 from services.autism_predictor import AutismPredictor
+from services.behavior_analyzer import behavior_analyzer
+from services.questionnaire_predictor import QuestionnairePredictor
+from services.video_behavior_predictor import VideoBehaviorPredictor
+from services.features.video_orchestrator import VideoFeatureOrchestrator
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(
     title="Autism Screening ML Service",
-    description="Real-time behavioral analysis through interactive games",
-    version="3.0.0"
+    description="Live video behavioral analysis with modular feature extraction",
+    version="4.0.0"
 )
 
 # CORS configuration
@@ -25,379 +29,244 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize analyzers
-eye_contact_analyzer = EyeContactAnalyzer()
-gesture_analyzer = GestureAnalyzer()
-smile_analyzer = SmileAnalyzer()
-repetitive_analyzer = RepetitiveAnalyzer()
-imitation_analyzer = ImitationAnalyzer()
+# Initialize services
 autism_predictor = AutismPredictor()
+questionnaire_predictor = QuestionnairePredictor()
+video_behavior_predictor = VideoBehaviorPredictor()
+
+# Session-based video orchestrators (one per session)
+active_sessions = {}
 
 # Request Models
-class FrameData(BaseModel):
-    frames: List[str]  # Base64 encoded images
-    duration: float    # Duration in seconds
-
-class PredictionInput(BaseModel):
-    eyeContact: Dict[str, float]
-    smile: Dict[str, float]
-    gesture: Dict[str, float]
-    repetitive: Dict[str, float]
-    imitation: Dict[str, float]
-    questionnaire: Dict[str, float]
-
-# Session storage for live analysis
-session_data = {}
-
-class LiveFrameBatch(BaseModel):
-    sessionId: str
-    frames: List[str]  # Base64 encoded frames
+class QuestionnaireInput(BaseModel):
+    """Model for questionnaire prediction using trained models"""
+    responses: List[bool]  # 20 yes/no answers (True=yes, False=no)
+    age: int  # Child age in months
+    sex: str  # 'male' or 'female'
+    jaundice: str  # 'yes' or 'no'
+    family_asd: str  # 'yes' or 'no'
 
 @app.get("/")
 def read_root():
     return {
-        "service": "Autism Screening ML Service - Interactive Live Analysis",
-        "version": "3.0.0",
+        "service": "Autism Screening ML Service - Modular Live Video Analysis",
+        "version": "4.0.0",
         "status": "running",
+        "features": [
+            "Eye Contact Ratio",
+            "Blink Rate",
+            "Head Movement Rate",
+            "Head Repetitive Movement",
+            "Hand Repetitive Movement",
+            "Gesture Frequency",
+            "Facial Expression Variability"
+        ],
         "endpoints": [
-            "/analyze/eye-contact",
-            "/analyze/smile",
-            "/analyze/gesture",
-            "/analyze/repetitive",
-            "/analyze/imitation",
-            "/predict/autism"
+            "/video/start-session",
+            "/video/process-frame",
+            "/video/end-session",
+            "/video/session-status/{session_id}",
+            "/predict/questionnaire"
         ]
     }
 
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}
+# ===== LIVE VIDEO ANALYSIS ENDPOINTS =====
 
-@app.post("/analyze/eye-contact")
-async def analyze_eye_contact(data: FrameData):
+class LiveVideoFrame(BaseModel):
+    """Single frame for real-time processing"""
+    session_id: str
+    frame: str  # Base64 encoded image
+    timestamp: float
+
+class SessionRequest(BaseModel):
+    """Session management"""
+    session_id: str
+    duration_seconds: Optional[float] = None
+
+@app.post("/video/start-session")
+async def start_video_session(data: SessionRequest):
     """
-    Analyze eye contact from live frames during 'Look at the Character' game.
-    Uses MediaPipe FaceMesh to detect eye gaze and alignment.
+    Start a new video analysis session.
+    Creates a VideoFeatureOrchestrator for the session.
     """
     try:
-        result = eye_contact_analyzer.analyze(data.frames, data.duration)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Eye contact analysis error: {str(e)}")
-
-@app.post("/analyze/gesture")
-async def analyze_gesture(data: FrameData):
-    """
-    Analyze gestures from live frames during 'Wave at the Character' game.
-    Uses MediaPipe Hands to detect waving and pointing.
-    """
-    try:
-        result = gesture_analyzer.analyze(data.frames, data.duration)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gesture analysis error: {str(e)}")
-
-@app.post("/analyze/smile")
-async def analyze_smile(data: FrameData):
-    """
-    Analyze smiling from live frames during 'Make the Character Happy' game.
-    Uses mouth landmark geometry to detect smiles.
-    """
-    try:
-        result = smile_analyzer.analyze(data.frames, data.duration)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Smile analysis error: {str(e)}")
-
-@app.post("/analyze/repetitive")
-async def analyze_repetitive(data: FrameData):
-    """
-    Analyze repetitive behaviors from live frames during free-play interaction.
-    Uses MediaPipe Pose to detect oscillatory movements.
-    """
-    try:
-        result = repetitive_analyzer.analyze(data.frames, data.duration)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Repetitive behavior analysis error: {str(e)}")
-
-@app.post("/analyze/imitation")
-async def analyze_imitation(data: FrameData):
-    """
-    Analyze imitation ability from live frames during 'Copy the Friend' game.
-    Uses MediaPipe Pose to detect if child imitates demonstrated actions.
-    """
-    try:
-        result = imitation_analyzer.analyze(data.frames, data.duration)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Imitation analysis error: {str(e)}")
-
-@app.post("/predict/autism")
-async def predict_autism(data: PredictionInput):
-    """
-    Generate final autism likelihood prediction from all interaction features.
-    Combines behavioral metrics with questionnaire responses.
-    """
-    try:
-        result = autism_predictor.predict(
-            eye_contact_data=data.eyeContact,
-            smile_data=data.smile,
-            gesture_data=data.gesture,
-            repetitive_data=data.repetitive,
-            imitation_data=data.imitation,
-            questionnaire_data=data.questionnaire
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
-
-# ===== NEW LIVE FRAME PROCESSING ENDPOINTS =====
-
-@app.post("/analyze/eye-contact-batch")
-async def analyze_eye_contact_batch(data: LiveFrameBatch):
-    """
-    Process live frame batch for eye contact during Rory interaction.
-    Stores incremental results per session.
-    """
-    try:
-        session_id = data.sessionId
+        session_id = data.session_id
         
-        # Initialize session if not exists
-        if session_id not in session_data:
-            session_data[session_id] = {
-                'eye_contact': {'frames': [], 'results': []},
-                'gesture': {'frames': [], 'detections': []},
-                'smile': {'frames': [], 'detections': []},
-                'repetitive': {'frames': [], 'results': []}
-            }
+        if session_id in active_sessions:
+            return {"status": "session_already_exists", "session_id": session_id}
         
-        # Analyze batch
-        batch_result = eye_contact_analyzer.analyze(data.frames, duration=len(data.frames) * 0.2)
-        session_data[session_id]['eye_contact']['results'].append(batch_result)
+        # Create new orchestrator for this session
+        active_sessions[session_id] = {
+            'orchestrator': VideoFeatureOrchestrator(),
+            'start_time': None,
+            'frame_count': 0
+        }
         
-        return {"status": "processed", "sessionId": session_id}
+        print(f"✓ Started video session: {session_id}")
+        
+        return {
+            "status": "session_started",
+            "session_id": session_id,
+            "message": "Ready to process frames through all feature extractors"
+        }
+    
     except Exception as e:
+        print(f"✗ Error starting session: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/analyze/eye-contact-result/{session_id}")
-async def get_eye_contact_result(session_id: str):
-    """
-    Get aggregated eye contact results for a session.
+
+@app.post("/video/process-frame")
+async def process_frame(data: LiveVideoFrame):
+    """Process a single frame through all feature extractors.
+    Extracts all 7 behavioral features and returns real-time results.
     """
     try:
-        if session_id not in session_data:
+        session_id = data.session_id
+        
+        # Get or create session
+        if session_id not in active_sessions:
+            active_sessions[session_id] = {
+                'orchestrator': VideoFeatureOrchestrator(),
+                'start_time': data.timestamp,
+                'frame_count': 0
+            }
+        
+        session = active_sessions[session_id]
+        orchestrator = session['orchestrator']
+        
+        # Set start time on first frame
+        if session['start_time'] is None:
+            session['start_time'] = data.timestamp
+        
+        # Process frame through orchestrator
+        result = orchestrator.process_frame(data.frame)
+        session['frame_count'] += 1
+        
+        # Add session info to result
+        result['session_info'] = {
+            'session_id': session_id,
+            'total_frames': session['frame_count'],
+            'elapsed_time': data.timestamp - session['start_time'] if session['start_time'] else 0
+        }
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error processing frame: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Frame processing error: {str(e)}")
+
+@app.post("/video/end-session")
+async def end_video_session(data: SessionRequest):
+    """
+    End video session and return comprehensive feature summary.
+    Aggregates all extracted features from the entire session.
+    """
+    try:
+        session_id = data.session_id
+        
+        if session_id not in active_sessions:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        results = session_data[session_id]['eye_contact']['results']
-        if not results:
-            return {
-                "metric": "eye_contact",
-                "value": 0.0,
-                "interpretation": "Insufficient data",
-                "confidence": 0.0
-            }
+        session = active_sessions[session_id]
+        orchestrator = session['orchestrator']
         
-        # Aggregate results
-        avg_value = np.mean([r.get('eyeContactRatio', 0) for r in results])
-        avg_confidence = np.mean([r.get('confidence', 0) for r in results])
+        # Calculate session duration
+        duration = data.duration_seconds or 300  # Default 5 minutes
         
-        interpretation = "Very Low"
-        if avg_value > 0.7: interpretation = "Good"
-        elif avg_value > 0.5: interpretation = "Moderate"
-        elif avg_value > 0.3: interpretation = "Low"
+        # Get comprehensive summary from orchestrator
+        summary = orchestrator.get_session_summary(duration)
+        
+        # Clean up session
+        del active_sessions[session_id]
+        
+        print(f"✓ Ended video session: {session_id} (Duration: {duration}s, Frames: {session['frame_count']})")
         
         return {
-            "metric": "eye_contact",
-            "value": float(avg_value),
-            "interpretation": interpretation,
-            "confidence": float(avg_confidence)
+            "status": "session_ended",
+            "session_id": session_id,
+            "summary": summary
         }
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error ending session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Session end error: {str(e)}")
 
-@app.post("/analyze/gesture-batch")
-async def analyze_gesture_batch(data: LiveFrameBatch):
+@app.get("/video/session-status/{session_id}")
+async def get_session_status(session_id: str):
     """
-    Process live frame batch for gesture detection.
+    Get current status of an active video session.
+    """
+    if session_id not in active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = active_sessions[session_id]
+    orchestrator = session['orchestrator']
+    
+    return {
+        "session_id": session_id,
+        "active": True,
+        "frames_processed": session['frame_count'],
+        "start_time": session['start_time'],
+        "features_extracted": {
+            "gaze_frames": len(orchestrator.eye_contact.gaze_history),
+            "blinks_detected": sum(1 for b in orchestrator.blink_rate.blink_history if b['is_blink']),
+            "head_poses": len(orchestrator.head_movement.head_pose_history),
+            "gestures_detected": len(orchestrator.gesture_detection.gesture_timestamps),
+            "facial_expressions": len(orchestrator.expression_variability.expression_history)
+        }
+    }
+
+# ===== QUESTIONNAIRE PREDICTION (PRESERVED) =====
+
+@app.post("/predict/questionnaire")
+async def predict_questionnaire(data: QuestionnaireInput):
+    """
+    Predict autism likelihood using trained questionnaire models.
+    Uses two pre-trained models and averages their predictions.
+    
+    This endpoint uses the trained .pkl models for questionnaire-only prediction.
     """
     try:
-        session_id = data.sessionId
-        
-        if session_id not in session_data:
-            session_data[session_id] = {
-                'eye_contact': {'frames': [], 'results': []},
-                'gesture': {'frames': [], 'detections': []},
-                'smile': {'frames': [], 'detections': []},
-                'repetitive': {'frames': [], 'results': []}
-            }
-        
-        # Analyze batch
-        batch_result = gesture_analyzer.analyze(data.frames, duration=len(data.frames) * 0.2)
-        gesture_detected = batch_result.get('gestureFrequency', 0) > 0
-        
-        session_data[session_id]['gesture']['detections'].append(batch_result)
-        
-        return {
-            "status": "processed",
-            "sessionId": session_id,
-            "gestureDetected": gesture_detected
+        questionnaire_data = {
+            'responses': data.responses,
+            'age': data.age,
+            'sex': data.sex,
+            'jaundice': data.jaundice,
+            'family_asd': data.family_asd
         }
+        
+        result = questionnaire_predictor.predict(questionnaire_data)
+        return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Questionnaire prediction error: {str(e)}")
 
-@app.get("/analyze/gesture-result/{session_id}")
-async def get_gesture_result(session_id: str):
+
+class VideoFeaturesInput(BaseModel):
+    """Model for video behavior prediction"""
+    eye_contact_ratio: float
+    blink_rate_per_minute: float
+    head_movement_rate: float
+    head_repetitive_movement: Optional[Dict] = None
+    hand_repetitive_movement: Optional[Dict] = None
+    gesture_frequency_per_minute: float
+    facial_expression_variability: float
+
+
+@app.post("/predict/video-behavior")
+async def predict_video_behavior(data: VideoFeaturesInput):
     """
-    Get aggregated gesture results.
+    Predict autism likelihood from 7 video behavioral features.
+    Analyzes eye contact, expressions, gestures, and repetitive behaviors.
     """
     try:
-        if session_id not in session_data:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        detections = session_data[session_id]['gesture']['detections']
-        if not detections:
-            return {
-                "metric": "gesture",
-                "value": 0,
-                "interpretation": "Insufficient data",
-                "confidence": 0.0
-            }
-        
-        total_gestures = sum([d.get('gestureFrequency', 0) for d in detections])
-        
-        interpretation = "Low"
-        if total_gestures > 5: interpretation = "Normal"
-        elif total_gestures > 2: interpretation = "Reduced"
-        
-        return {
-            "metric": "gesture",
-            "value": int(total_gestures),
-            "interpretation": interpretation,
-            "confidence": 0.85
-        }
+        video_features = data.dict()
+        result = video_behavior_predictor.predict(video_features)
+        return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Video behavior prediction error: {str(e)}")
 
-@app.post("/analyze/smile-batch")
-async def analyze_smile_batch(data: LiveFrameBatch):
-    """
-    Process live frame batch for smile detection.
-    """
-    try:
-        session_id = data.sessionId
-        
-        if session_id not in session_data:
-            session_data[session_id] = {
-                'eye_contact': {'frames': [], 'results': []},
-                'gesture': {'frames': [], 'detections': []},
-                'smile': {'frames': [], 'detections': []},
-                'repetitive': {'frames': [], 'results': []}
-            }
-        
-        # Analyze batch
-        batch_result = smile_analyzer.analyze(data.frames, duration=len(data.frames) * 0.2)
-        smile_detected = batch_result.get('smileRatio', 0) > 0.3
-        
-        session_data[session_id]['smile']['detections'].append(batch_result)
-        
-        return {
-            "status": "processed",
-            "sessionId": session_id,
-            "smileDetected": smile_detected
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/analyze/smile-result/{session_id}")
-async def get_smile_result(session_id: str):
-    """
-    Get aggregated smile results.
-    """
-    try:
-        if session_id not in session_data:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        detections = session_data[session_id]['smile']['detections']
-        if not detections:
-            return {
-                "metric": "smile",
-                "value": 0,
-                "interpretation": "Insufficient data",
-                "confidence": 0.0
-            }
-        
-        avg_smile_ratio = np.mean([d.get('smileRatio', 0) for d in detections])
-        
-        interpretation = "Low"
-        if avg_smile_ratio > 0.5: interpretation = "Normal"
-        elif avg_smile_ratio > 0.3: interpretation = "Reduced"
-        
-        return {
-            "metric": "smile",
-            "value": float(avg_smile_ratio),
-            "interpretation": interpretation,
-            "confidence": 0.80
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/analyze/repetitive-batch")
-async def analyze_repetitive_batch(data: LiveFrameBatch):
-    """
-    Process live frame batch for repetitive behavior.
-    """
-    try:
-        session_id = data.sessionId
-        
-        if session_id not in session_data:
-            session_data[session_id] = {
-                'eye_contact': {'frames': [], 'results': []},
-                'gesture': {'frames': [], 'detections': []},
-                'smile': {'frames': [], 'detections': []},
-                'repetitive': {'frames': [], 'results': []}
-            }
-        
-        # Analyze batch
-        batch_result = repetitive_analyzer.analyze(data.frames, duration=len(data.frames) * 0.2)
-        session_data[session_id]['repetitive']['results'].append(batch_result)
-        
-        return {"status": "processed", "sessionId": session_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/analyze/repetitive-result/{session_id}")
-async def get_repetitive_result(session_id: str):
-    """
-    Get aggregated repetitive behavior results.
-    """
-    try:
-        if session_id not in session_data:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        results = session_data[session_id]['repetitive']['results']
-        if not results:
-            return {
-                "metric": "repetitive",
-                "value": 0.0,
-                "interpretation": "Absent",
-                "confidence": 0.0
-            }
-        
-        avg_ratio = np.mean([r.get('repetitiveRatio', 0) for r in results])
-        
-        interpretation = "Absent"
-        if avg_ratio > 0.5: interpretation = "Present"
-        elif avg_ratio > 0.2: interpretation = "Mild"
-        
-        return {
-            "metric": "repetitive",
-            "value": float(avg_ratio),
-            "interpretation": interpretation,
-            "confidence": 0.75
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

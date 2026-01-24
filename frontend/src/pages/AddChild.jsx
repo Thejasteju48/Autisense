@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { childrenAPI } from '../services/api';
-import { CameraIcon } from '@heroicons/react/24/outline';
+import { CameraIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import { Button, Input, Select, Textarea, PageHeader } from '../components/ui';
 
 const AddChild = () => {

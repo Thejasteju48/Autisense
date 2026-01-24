@@ -397,11 +397,12 @@ Format each recommendation as a single clear sentence. Always include the discla
         return recommendations[:8]  # Limit to 8 recommendations
     
     def _generate_rule_based_interpretation(self, likelihood: float, risk: str,
-                                           eye_score: float, gesture_score: float,
-                                           smile_score: float, repetitive_score: float,
-                                           questionnaire_score: float,
-                                           eye_data: Dict, gesture_data: Dict,
-                                           smile_data: Dict, repetitive_data: Dict) -> Dict:
+                                           eye_score: float, smile_score: float,
+                                           gesture_score: float, repetitive_score: float,
+                                           imitation_score: float, questionnaire_score: float,
+                                           eye_data: Dict, smile_data: Dict,
+                                           gesture_data: Dict, repetitive_data: Dict,
+                                           imitation_data: Dict) -> Dict:
         """Fallback rule-based interpretation"""
         
         # Summary
@@ -450,6 +451,17 @@ Format each recommendation as a single clear sentence. Always include the discla
         else:
             repetitive_insights = f"Minimal repetitive behaviors were observed ({oscillations} movements), which is age-appropriate."
         
+        # Imitation insights
+        imitation_ratio = imitation_data.get('score', 0)
+        successful = imitation_data.get('successfulImitations', 0)
+        total = imitation_data.get('totalAttempts', 0)
+        if imitation_score > 60:
+            imitation_insights = f"Imitation skills were limited ({successful}/{total} successful attempts), which may indicate challenges with social learning."
+        elif imitation_score > 30:
+            imitation_insights = f"Imitation skills were emerging ({successful}/{total} successful attempts), showing developing social learning abilities."
+        else:
+            imitation_insights = f"Imitation skills were good ({successful}/{total} successful attempts), indicating strong social learning abilities."
+        
         # Questionnaire insights
         if questionnaire_score > 60:
             questionnaire_insights = "Parent observations indicated multiple developmental concerns across social, communication, and behavioral domains."
@@ -467,6 +479,7 @@ Format each recommendation as a single clear sentence. Always include the discla
             'gestureInsights': gesture_insights,
             'smileInsights': smile_insights,
             'repetitiveInsights': repetitive_insights,
+            'imitationInsights': imitation_insights,
             'questionnaireInsights': questionnaire_insights,
             'recommendations': recommendations
         }

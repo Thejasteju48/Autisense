@@ -96,9 +96,9 @@ const Dashboard = () => {
               <div className="bg-white p-4 rounded-lg border border-purple-200">
                 <div className="flex items-center mb-2">
                   <span className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
-                  <h4 className="font-semibold text-gray-900">Interactive Games</h4>
+                  <h4 className="font-semibold text-gray-900">Video Assessment</h4>
                 </div>
-                <p className="text-sm text-gray-600 ml-8">Child plays 5 fun games (~3 minutes total)</p>
+                <p className="text-sm text-gray-600 ml-8">Live behavioral analysis (2-4 minutes)</p>
               </div>
               <div className="bg-white p-4 rounded-lg border border-purple-200">
                 <div className="flex items-center mb-2">
@@ -166,7 +166,7 @@ const Dashboard = () => {
               ) : (
                 <div className="rounded-xl p-4 border-2 border-dashed border-purple-300 mb-4 bg-purple-50">
                   <p className="text-sm text-purple-900 font-medium text-center mb-2">Ready to Screen</p>
-                  <p className="text-xs text-purple-700 text-center">Start the interactive assessment</p>
+                  <p className="text-xs text-purple-700 text-center">Start live video behavior analysis</p>
                 </div>
               )}
 
@@ -228,8 +228,9 @@ const Dashboard = () => {
         <h3 className="text-lg font-bold text-gray-800 mb-3">About Early Screening</h3>
         <p className="text-gray-700 mb-4">
           Early autism screening can help identify developmental differences at an early age, 
-          allowing for timely intervention and support. Our screening tool combines video analysis, 
-          audio assessment, and behavioral questionnaires to provide comprehensive insights.
+          allowing for timely intervention and support. Our professional screening system uses 
+          real-time video behavior analysis with AI to detect 7 key behavioral indicators, 
+          combined with clinical questionnaires for comprehensive assessment.
         </p>
         <p className="text-sm text-gray-600 italic">
           ⚠️ Important: This tool is for screening purposes only and is NOT a diagnostic tool. 

@@ -13,6 +13,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <App />
         <Toaster 
           position="top-right"
+          reverseOrder={false}
+          gutter={8}
+          containerStyle={{
+            top: 80,
+          }}
           toastOptions={{
             duration: 3000,
             style: {
@@ -22,12 +27,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               padding: '16px',
             },
             success: {
+              duration: 3000,
               iconTheme: {
                 primary: '#10b981',
                 secondary: '#fff',
               },
             },
             error: {
+              duration: 4000,
               iconTheme: {
                 primary: '#ef4444',
                 secondary: '#fff',

@@ -20,7 +20,8 @@ exports.startScreening = async (req, res) => {
     // Create new screening
     const screening = await Screening.create({
       child: childId,
-      parent: req.user._id,
+      user: req.user._id,
+      parent: req.user._id,  // Keep for backward compatibility
       status: 'started'
     });
 
@@ -52,288 +53,81 @@ exports.startScreening = async (req, res) => {
   }
 };
 
-// @desc    Process eye contact interaction frames
-// @route   POST /api/screenings/:id/eye-contact
-// @access  Private
-exports.processEyeContact = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { frames, duration } = req.body;
-
-    // Find screening
-    const screening = await Screening.findOne({ _id: id, parent: req.user._id });
-    if (!screening) {
-      return res.status(404).json({ message: 'Screening not found' });
-    }
-
-    // Send frames to ML service for analysis
-    const response = await axios.post(`${ML_SERVICE_URL}/analyze/eye-contact`, {
-      frames: frames,  // array of base64 encoded frames
-      duration: duration
-    });
-
-    const analysisResult = response.data;
-
-    // Update screening with eye contact results
-    screening.eyeContactInteraction = {
-      completed: true,
-      eyeContactRatio: analysisResult.eyeContactRatio,
-      averageEAR: analysisResult.averageEAR,
-      alignmentScore: analysisResult.alignmentScore,
-      totalFrames: analysisResult.totalFrames,
-      contactFrames: analysisResult.contactFrames,
-      confidence: analysisResult.confidence,
-      interpretation: analysisResult.interpretation,
-      duration: duration,
-      completedAt: new Date()
-    };
-
-    screening.status = 'in-progress';
-    await screening.save();
-
-    res.json({
-      success: true,
-      data: screening.eyeContactInteraction,
-      message: 'Eye contact analysis completed'
-    });
-  } catch (error) {
-    console.error('Error processing eye contact:', error);
-    res.status(500).json({ 
-      message: 'Error processing eye contact data',
-      error: error.message 
-    });
-  }
-};
-
-// @desc    Process gesture interaction frames
-// @route   POST /api/screenings/:id/gesture
-// @access  Private
-exports.processGesture = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { frames, duration } = req.body;
-
-    const screening = await Screening.findOne({ _id: id, parent: req.user._id });
-    if (!screening) {
-      return res.status(404).json({ message: 'Screening not found' });
-    }
-
-    // Send frames to ML service
-    const response = await axios.post(`${ML_SERVICE_URL}/analyze/gesture`, {
-      frames: frames,
-      duration: duration
-    });
-
-    const analysisResult = response.data;
-
-    // Update screening with gesture results
-    screening.gestureInteraction = {
-      completed: true,
-      gestureFrequency: analysisResult.gestureFrequency,
-      waveCount: analysisResult.waveCount,
-      pointCount: analysisResult.pointCount,
-      handMovementScore: analysisResult.handMovementScore,
-      totalFrames: analysisResult.totalFrames,
-      confidence: analysisResult.confidence,
-      interpretation: analysisResult.interpretation,
-      duration: duration,
-      completedAt: new Date()
-    };
-
-    await screening.save();
-
-    res.json({
-      success: true,
-      data: screening.gestureInteraction,
-      message: 'Gesture analysis completed'
-    });
-  } catch (error) {
-    console.error('Error processing gesture:', error);
-    res.status(500).json({ 
-      message: 'Error processing gesture data',
-      error: error.message 
-    });
-  }
-};
-
-// @desc    Process smile interaction frames
-// @route   POST /api/screenings/:id/smile
-// @access  Private
-exports.processSmile = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { frames, duration } = req.body;
-
-    const screening = await Screening.findOne({ _id: id, parent: req.user._id });
-    if (!screening) {
-      return res.status(404).json({ message: 'Screening not found' });
-    }
-
-    // Send frames to ML service
-    const response = await axios.post(`${ML_SERVICE_URL}/analyze/smile`, {
-      frames: frames,
-      duration: duration
-    });
-
-    const analysisResult = response.data;
-
-    // Update screening with smile results
-    screening.smileInteraction = {
-      completed: true,
-      smileRatio: analysisResult.smileRatio,
-      smileFrequency: analysisResult.smileFrequency,
-      mouthAspectRatio: analysisResult.mouthAspectRatio,
-      totalFrames: analysisResult.totalFrames,
-      smileFrames: analysisResult.smileFrames,
-      confidence: analysisResult.confidence,
-      interpretation: analysisResult.interpretation,
-      duration: duration,
-      completedAt: new Date()
-    };
-
-    await screening.save();
-
-    res.json({
-      success: true,
-      data: screening.smileInteraction,
-      message: 'Smile analysis completed'
-    });
-  } catch (error) {
-    console.error('Error processing smile:', error);
-    res.status(500).json({ 
-      message: 'Error processing smile data',
-      error: error.message 
-    });
-  }
-};
-
-// @desc    Process repetitive behavior interaction frames
-// @route   POST /api/screenings/:id/repetitive
-// @access  Private
-exports.processRepetitive = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { frames, duration } = req.body;
-
-    const screening = await Screening.findOne({ _id: id, parent: req.user._id });
-    if (!screening) {
-      return res.status(404).json({ message: 'Screening not found' });
-    }
-
-    // Send frames to ML service
-    const response = await axios.post(`${ML_SERVICE_URL}/analyze/repetitive`, {
-      frames: frames,
-      duration: duration
-    });
-
-    const analysisResult = response.data;
-
-    // Update screening with repetitive behavior results
-    screening.repetitiveInteraction = {
-      completed: true,
-      repetitiveRatio: analysisResult.repetitiveRatio,
-      oscillationCount: analysisResult.oscillationCount,
-      motionRange: analysisResult.motionRange,
-      patternScore: analysisResult.patternScore,
-      totalFrames: analysisResult.totalFrames,
-      confidence: analysisResult.confidence,
-      interpretation: analysisResult.interpretation,
-      duration: duration,
-      completedAt: new Date()
-    };
-
-    await screening.save();
-
-    res.json({
-      success: true,
-      data: screening.repetitiveInteraction,
-      message: 'Repetitive behavior analysis completed'
-    });
-  } catch (error) {
-    console.error('Error processing repetitive behavior:', error);
-    res.status(500).json({ 
-      message: 'Error processing repetitive behavior data',
-      error: error.message 
-    });
-  }
-};
-
-// @desc    Process imitation interaction frames
-// @route   POST /api/screenings/:id/imitation
-// @access  Private
-exports.processImitation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { frames, duration } = req.body;
-
-    const screening = await Screening.findOne({ _id: id, parent: req.user._id });
-    if (!screening) {
-      return res.status(404).json({ message: 'Screening not found' });
-    }
-
-    // Send frames to ML service
-    const response = await axios.post(`${ML_SERVICE_URL}/analyze/imitation`, {
-      frames: frames,
-      duration: duration
-    });
-
-    const analysisResult = response.data;
-
-    // Update screening with imitation results
-    screening.imitationInteraction = {
-      completed: true,
-      imitationScore: analysisResult.imitationScore,
-      successfulImitations: analysisResult.successfulImitations,
-      totalAttempts: analysisResult.totalAttempts,
-      averageDelay: analysisResult.averageDelay,
-      similarityScore: analysisResult.similarityScore,
-      totalFrames: analysisResult.totalFrames,
-      confidence: analysisResult.confidence,
-      interpretation: analysisResult.interpretation,
-      duration: duration,
-      completedAt: new Date()
-    };
-
-    await screening.save();
-
-    res.json({
-      success: true,
-      data: screening.imitationInteraction,
-      message: 'Imitation analysis completed'
-    });
-  } catch (error) {
-    console.error('Error processing imitation:', error);
-    res.status(500).json({ 
-      message: 'Error processing imitation data',
-      error: error.message 
-    });
-  }
-};
-
 // @desc    Submit questionnaire responses
 // @route   POST /api/screenings/:id/questionnaire
 // @access  Private
 exports.submitQuestionnaire = async (req, res) => {
   try {
     const { id } = req.params;
-    const { responses } = req.body;
+    const { responses, videoData, jaundice, family_asd } = req.body;
 
-    const screening = await Screening.findOne({ _id: id, parent: req.user._id });
+    console.log('📝 Received questionnaire submission:', {
+      screeningId: id,
+      responsesType: Array.isArray(responses) ? 'array' : typeof responses,
+      responsesLength: Array.isArray(responses) ? responses.length : 'N/A',
+      firstResponse: Array.isArray(responses) && responses.length > 0 ? responses[0] : null,
+      jaundice,
+      family_asd
+    });
+
+    const screening = await Screening.findOne({ _id: id, user: req.user._id });
     if (!screening) {
       return res.status(404).json({ message: 'Screening not found' });
     }
 
+    // Ensure responses is an array
+    const responsesArray = Array.isArray(responses) ? responses : [];
+    
     // Calculate questionnaire score (percentage of "yes" answers)
-    const yesCount = responses.filter(r => r.answer === true).length;
-    const score = yesCount / responses.length;
+    const yesCount = responsesArray.filter(r => r.answer === true).length;
+    const score = responsesArray.length > 0 ? yesCount / responsesArray.length : 0;
 
     // Update screening with questionnaire
     screening.questionnaire = {
       completed: true,
-      responses: responses,
-      score: score
+      responses: responsesArray,
+      score: score,
+      jaundice: jaundice || 'no',
+      family_asd: family_asd || 'no'
     };
 
+    // Save live video features if provided
+    if (videoData && Object.keys(videoData).length > 0) {
+      // Map ML service features to database schema
+      screening.liveVideoFeatures = {
+        eyeContactRatio: videoData.eye_contact_ratio,
+        blinkRatePerMinute: videoData.blink_rate_per_minute,
+        headMovementRate: videoData.head_movement_rate,
+        headRepetitiveMovement: videoData.head_repetitive_movement || {
+          detected: false,
+          oscillations: 0,
+          horizontal: 0,
+          vertical: 0
+        },
+        handRepetitiveMovement: videoData.hand_repetitive_movement || {
+          leftHand: { detected: false, oscillations: 0, intensity: 0 },
+          rightHand: { detected: false, oscillations: 0, intensity: 0 }
+        },
+        gestureFrequencyPerMinute: videoData.gesture_frequency_per_minute,
+        facialExpressionVariability: videoData.facial_expression_variability,
+        sessionDuration: videoData.session_duration_seconds,
+        totalFrames: videoData.total_frames_processed,
+        interpretation: videoData.interpretation || {
+          concerns: [],
+          riskScore: 0,
+          summary: ''
+        }
+      };
+      
+      console.log('✓ Saved live video features:', {
+        eyeContact: screening.liveVideoFeatures.eyeContactRatio,
+        blinkRate: screening.liveVideoFeatures.blinkRatePerMinute,
+        gestures: screening.liveVideoFeatures.gestureFrequencyPerMinute,
+        expressions: screening.liveVideoFeatures.facialExpressionVariability
+      });
+    }
+
+    screening.status = 'in-progress';
     await screening.save();
 
     res.json({
@@ -341,7 +135,8 @@ exports.submitQuestionnaire = async (req, res) => {
       data: {
         score: score,
         totalQuestions: responses.length,
-        yesCount: yesCount
+        yesCount: yesCount,
+        hasVideoData: !!videoData
       },
       message: 'Questionnaire submitted successfully'
     });
@@ -358,75 +153,149 @@ exports.completeScreening = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const screening = await Screening.findOne({ _id: id, parent: req.user._id })
-      .populate('child', 'name nickname dateOfBirth');
+    const screening = await Screening.findOne({ _id: id, user: req.user._id })
+      .populate('child', 'name nickname dateOfBirth ageInMonths gender jaundice familyASD');
     
     if (!screening) {
       return res.status(404).json({ message: 'Screening not found' });
     }
 
-    // Check if all interactions are completed
-    if (!screening.allInteractionsCompleted()) {
+    console.log('Completing screening:', {
+      id: screening._id,
+      questionnaireCompleted: screening.questionnaire?.completed,
+      responsesCount: screening.questionnaire?.responses?.length,
+      childAge: screening.child?.ageInMonths,
+      childGender: screening.child?.gender
+    });
+
+    // Check if questionnaire is completed
+    if (!screening.questionnaire?.completed) {
       return res.status(400).json({ 
-        message: 'Please complete all interactions before finalizing screening',
-        completed: {
-          eyeContact: screening.eyeContactInteraction?.completed || false,
-          smile: screening.smileInteraction?.completed || false,
-          gesture: screening.gestureInteraction?.completed || false,
-          repetitive: screening.repetitiveInteraction?.completed || false,
-          imitation: screening.imitationInteraction?.completed || false,
-          questionnaire: screening.questionnaire?.completed || false
-        }
+        message: 'Please complete the questionnaire before finalizing screening'
       });
     }
 
-    // Send all interaction data to ML service for final prediction
-    const predictionData = {
-      eyeContact: {
-        ratio: screening.eyeContactInteraction.eyeContactRatio,
-        ear: screening.eyeContactInteraction.averageEAR,
-        alignment: screening.eyeContactInteraction.alignmentScore
-      },
-      smile: {
-        ratio: screening.smileInteraction.smileRatio,
-        frequency: screening.smileInteraction.smileFrequency
-      },
-      gesture: {
-        frequency: screening.gestureInteraction.gestureFrequency,
-        waveCount: screening.gestureInteraction.waveCount,
-        pointCount: screening.gestureInteraction.pointCount
-      },
-      repetitive: {
-        ratio: screening.repetitiveInteraction.repetitiveRatio,
-        oscillationCount: screening.repetitiveInteraction.oscillationCount
-      },
-      imitation: {
-        score: screening.imitationInteraction.imitationScore,
-        successfulImitations: screening.imitationInteraction.successfulImitations,
-        totalAttempts: screening.imitationInteraction.totalAttempts,
-        averageDelay: screening.imitationInteraction.averageDelay
-      },
-      questionnaire: {
-        score: screening.questionnaire.score
+    // Validate responses exist
+    if (!screening.questionnaire.responses || screening.questionnaire.responses.length === 0) {
+      return res.status(400).json({
+        message: 'No questionnaire responses found. Please fill out the questionnaire first.'
+      });
+    }
+
+    // Prepare questionnaire data for ML prediction
+    const questionnaireData = {
+      responses: screening.questionnaire.responses.map(r => r.answer), // Boolean array
+      age: screening.child.ageInMonths || 36, // Default to 36 months if not set
+      sex: (screening.child.gender || 'male').toLowerCase(),
+      jaundice: screening.questionnaire.jaundice || 'no',
+      family_asd: screening.questionnaire.family_asd || 'no'
+    };
+
+    console.log('Sending questionnaire to ML service:', questionnaireData);
+
+    // Get questionnaire prediction from ML service using trained models
+    const questionnaireResponse = await axios.post(`${ML_SERVICE_URL}/predict/questionnaire`, questionnaireData);
+    const questionnairePrediction = questionnaireResponse.data;
+    
+    console.log('✓ Questionnaire prediction:', {
+      probability: questionnairePrediction.probability,
+      risk: questionnairePrediction.risk_level
+    });
+
+    // Get video behavior prediction if video features exist
+    let videoPrediction = null;
+    if (screening.liveVideoFeatures && screening.liveVideoFeatures.eyeContactRatio !== undefined) {
+      try {
+        const videoFeatureData = {
+          eye_contact_ratio: screening.liveVideoFeatures.eyeContactRatio || 0.5,
+          blink_rate_per_minute: screening.liveVideoFeatures.blinkRatePerMinute || 15,
+          head_movement_rate: screening.liveVideoFeatures.headMovementRate || 0.2,
+          head_repetitive_movement: screening.liveVideoFeatures.headRepetitiveMovement || {},
+          hand_repetitive_movement: screening.liveVideoFeatures.handRepetitiveMovement || {},
+          gesture_frequency_per_minute: screening.liveVideoFeatures.gestureFrequencyPerMinute || 3,
+          facial_expression_variability: screening.liveVideoFeatures.facialExpressionVariability || 0.4
+        };
+        
+        console.log('Sending video features to ML service:', videoFeatureData);
+        
+        const videoResponse = await axios.post(`${ML_SERVICE_URL}/predict/video-behavior`, videoFeatureData);
+        videoPrediction = videoResponse.data;
+        
+        console.log('✓ Video behavior prediction:', {
+          score: videoPrediction.video_behavior_score,
+          risk: videoPrediction.risk_level
+        });
+      } catch (videoError) {
+        console.error('Warning: Video behavior prediction failed:', videoError.message);
+        // Continue with questionnaire-only prediction
       }
-    };
+    }
 
-    const response = await axios.post(`${ML_SERVICE_URL}/predict/autism`, predictionData);
-    const prediction = response.data;
+    // Combine predictions (weighted average if both available)
+    let finalScore, riskLevel, interpretation;
+    
+    if (videoPrediction) {
+      // Combine: 60% questionnaire (more reliable), 40% video
+      finalScore = (questionnairePrediction.probability * 100 * 0.6) + (videoPrediction.video_behavior_score * 0.4);
+      
+      // Determine combined risk level
+      if (finalScore < 30) {
+        riskLevel = 'Low';
+      } else if (finalScore < 60) {
+        riskLevel = 'Moderate';
+      } else {
+        riskLevel = 'High';
+      }
+      
+      interpretation = `Combined assessment: ${questionnairePrediction.interpretation} ${videoPrediction.interpretation}`;
+      
+      console.log('✓ Combined prediction:', { finalScore, riskLevel });
+    } else {
+      // Use questionnaire-only prediction
+      finalScore = questionnairePrediction.probability * 100;
+      riskLevel = questionnairePrediction.risk_level;
+      interpretation = questionnairePrediction.interpretation;
+      
+      console.log('✓ Using questionnaire-only prediction');
+    }
 
-    // Update screening with final results
-    screening.finalScore = prediction.autismLikelihood;
-    screening.riskLevel = prediction.riskLevel;
+    // Update screening with ML prediction results
+    screening.finalScore = finalScore;
+    screening.riskLevel = riskLevel;
+    // Update screening with ML prediction results
+    screening.finalScore = finalScore;
+    screening.riskLevel = riskLevel;
     screening.interpretation = {
-      summary: prediction.interpretation.summary,
-      eyeContactInsights: prediction.interpretation.eyeContactInsights,
-      smileInsights: prediction.interpretation.smileInsights,
-      gestureInsights: prediction.interpretation.gestureInsights,
-      repetitiveInsights: prediction.interpretation.repetitiveInsights,
-      imitationInsights: prediction.interpretation.imitationInsights,
-      questionnaireInsights: prediction.interpretation.questionnaireInsights,
-      recommendations: prediction.interpretation.recommendations
+      summary: interpretation,
+      confidence: questionnairePrediction.confidence || 0.85,
+      recommendations: questionnairePrediction.recommendations || [],
+      liveVideoSummary: screening.liveVideoFeatures?.interpretation?.summary || 'N/A',
+      videoBehaviorScore: videoPrediction ? videoPrediction.video_behavior_score : null,
+      componentScores: videoPrediction ? videoPrediction.component_scores : null
     };
+
+    // Generate LLM-enhanced analysis using Groq
+    let llmAnalysis = null;
+    try {
+      const groqService = require('../services/groqService');
+      const analysisResult = await groqService.generateScreeningAnalysis({
+        finalScore: screening.finalScore,
+        riskLevel: screening.riskLevel,
+        questionnaire: screening.questionnaire,
+        liveVideoFeatures: screening.liveVideoFeatures,
+        child: screening.child
+      });
+
+      if (analysisResult.success) {
+        llmAnalysis = analysisResult.analysis;
+        screening.interpretation.llmAnalysis = llmAnalysis;
+        console.log('✓ Generated LLM analysis using Groq API');
+      }
+    } catch (llmError) {
+      console.error('Warning: Failed to generate LLM analysis:', llmError.message);
+      // Continue without LLM analysis - not critical
+    }
+
     screening.status = 'completed';
     screening.completedAt = new Date();
 
@@ -440,7 +309,9 @@ exports.completeScreening = async (req, res) => {
         finalScore: screening.finalScore,
         riskLevel: screening.riskLevel,
         interpretation: screening.interpretation,
-        completedAt: screening.completedAt
+        liveVideoFeatures: screening.liveVideoFeatures,
+        completedAt: screening.completedAt,
+        hasLLMAnalysis: !!llmAnalysis
       },
       message: 'Screening completed successfully'
     });
@@ -460,7 +331,7 @@ exports.getScreening = async (req, res) => {
   try {
     const screening = await Screening.findOne({ 
       _id: req.params.id, 
-      parent: req.user._id 
+      user: req.user._id 
     }).populate('child', 'name nickname dateOfBirth profileImage');
 
     if (!screening) {
@@ -484,7 +355,7 @@ exports.getScreeningsByChild = async (req, res) => {
     
     const query = Screening.find({ 
       child: req.params.childId,
-      parent: req.user._id,
+      user: req.user._id,
       status: 'completed'
     })
     .sort({ createdAt: -1 })
@@ -516,10 +387,10 @@ exports.generateReport = async (req, res) => {
   try {
     const screening = await Screening.findOne({ 
       _id: req.params.id, 
-      parent: req.user._id 
+      user: req.user._id 
     })
     .populate('child', 'name nickname dateOfBirth')
-    .populate('parent', 'name email');
+    .populate('user', 'name email');
 
     if (!screening) {
       return res.status(404).json({ message: 'Screening not found' });
@@ -529,16 +400,23 @@ exports.generateReport = async (req, res) => {
       return res.status(400).json({ message: 'Screening is not completed yet' });
     }
 
-    // Generate PDF report
-    const pdfGenerator = require('../utils/pdfGenerator');
-    const reportPath = await pdfGenerator.generateInteractionReport(screening);
+    // Populate child details
+    await screening.populate('child');
+
+    // Generate PDF report with LLM analysis
+    const pdfService = require('../services/pdfService');
+    const llmAnalysis = screening.interpretation?.llmAnalysis || null;
+    
+    const reportPath = await pdfService.generateScreeningReport(screening, llmAnalysis);
 
     screening.reportGenerated = true;
     screening.reportPath = reportPath;
     await screening.save();
 
+    console.log('✓ PDF report generated:', reportPath);
+
     // Send PDF file
-    res.download(reportPath, `screening-report-${screening._id}.pdf`);
+    res.download(reportPath, `screening-report-${screening.child.name}-${new Date().toISOString().split('T')[0]}.pdf`);
   } catch (error) {
     console.error('Error generating report:', error);
     res.status(500).json({ message: 'Error generating report' });
@@ -552,7 +430,7 @@ exports.deleteScreening = async (req, res) => {
   try {
     const screening = await Screening.findOne({ 
       _id: req.params.id, 
-      parent: req.user._id 
+      user: req.user._id 
     });
 
     if (!screening) {

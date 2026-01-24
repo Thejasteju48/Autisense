@@ -8,21 +8,28 @@ const ChildProfile = () => {
   const { id } = useParams();
   const [child, setChild] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchChild();
+    if (id && !error) {
+      fetchChild();
+    }
   }, [id]);
 
   const fetchChild = async () => {
+    if (error) return; // Prevent multiple calls if already failed
+    
     try {
       const response = await childrenAPI.getOne(id);
       setChild(response.data.data.child);
-    } catch (error) {
-      toast.error('Failed to load child profile');
-      navigate('/dashboard');
-    } finally {
       setLoading(false);
+    } catch (err) {
+      console.error('Error loading child profile:', err);
+      setError(true);
+      setLoading(false);
+      toast.error('Failed to load child profile', { id: `child-error-${id}` });
+      setTimeout(() => navigate('/dashboard'), 1500);
     }
   };
 

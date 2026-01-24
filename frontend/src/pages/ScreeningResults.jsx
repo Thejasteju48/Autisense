@@ -17,8 +17,10 @@ const ScreeningResults = () => {
   const fetchResults = async () => {
     try {
       const response = await screeningAPI.getOne(screeningId);
+      console.log('Fetched screening:', response.data);
       setScreening(response.data.data.screening);
     } catch (error) {
+      console.error('Failed to load results:', error);
       toast.error('Failed to load results');
     } finally {
       setLoading(false);
@@ -51,6 +53,19 @@ const ScreeningResults = () => {
   };
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-t-4 border-primary-500"></div></div>;
+  
+  if (!screening) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">No screening data found</p>
+          <button onClick={() => navigate('/dashboard')} className="btn-primary">
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-transition max-w-4xl mx-auto">
@@ -72,6 +87,47 @@ const ScreeningResults = () => {
                 <h3 className="text-xl font-bold mb-3">Summary</h3>
                 <p className="text-gray-700">{screening.interpretation.summary}</p>
               </div>
+
+              {screening.interpretation.llmAnalysis && (
+                <div className="mb-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
+                  <div className="flex items-center mb-4">
+                    <svg className="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <h3 className="text-xl font-bold text-indigo-900">AI-Enhanced Clinical Analysis</h3>
+                  </div>
+                  <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
+                    {screening.interpretation.llmAnalysis}
+                  </div>
+                </div>
+              )}
+
+              {screening.interpretation.componentScores && (
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold mb-3">Video Behavior Analysis</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-semibold mb-2">👁️ Eye Contact</h4>
+                      <p className="text-sm text-gray-700">Score: {screening.interpretation.componentScores.eye_contact.toFixed(1)}/100</p>
+                    </div>
+                    <div className="p-4 bg-purple-50 rounded-lg">
+                      <h4 className="font-semibold mb-2">😊 Facial Expressions</h4>
+                      <p className="text-sm text-gray-700">Score: {screening.interpretation.componentScores.facial_expression.toFixed(1)}/100</p>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <h4 className="font-semibold mb-2">👋 Gestures</h4>
+                      <p className="text-sm text-gray-700">Score: {screening.interpretation.componentScores.gesture_frequency.toFixed(1)}/100</p>
+                    </div>
+                    <div className="p-4 bg-yellow-50 rounded-lg">
+                      <h4 className="font-semibold mb-2">🔄 Repetitive Behaviors</h4>
+                      <p className="text-sm text-gray-700">
+                        Head: {screening.interpretation.componentScores.head_repetition.toFixed(1)}/100<br/>
+                        Hand: {screening.interpretation.componentScores.hand_repetition.toFixed(1)}/100
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4 mb-6">
                 <div className="p-4 bg-blue-50 rounded-lg">

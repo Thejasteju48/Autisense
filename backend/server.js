@@ -10,7 +10,7 @@ dotenv.config();
 const authRoutes = require('./routes/authRoutes');
 const childRoutes = require('./routes/childRoutes');
 const screeningRoutes = require('./routes/screeningRoutes');
-const gameRoutes = require('./routes/gameRoutes');
+const videoFeatureRoutes = require('./routes/videoFeatureRoutes');
 
 const app = express();
 
@@ -21,8 +21,8 @@ app.use(cors({
     : 'http://localhost:3000',
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' })); // Increase limit for video frames
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Static files for uploads
 app.use('/uploads', express.static('uploads'));
@@ -31,7 +31,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/children', childRoutes);
 app.use('/api/screenings', screeningRoutes);
-app.use('/api/games', gameRoutes);
+app.use('/api/video-features', videoFeatureRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
