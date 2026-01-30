@@ -11,6 +11,7 @@ import AddChild from './pages/AddChild';
 import ScreeningFlow from './pages/ScreeningFlow';
 import ScreeningResults from './pages/ScreeningResults';
 import History from './pages/History';
+import AllScreeningsHistory from './pages/AllScreeningsHistory';
 
 // Layout
 import Layout from './components/Layout';
@@ -41,6 +42,7 @@ function App() {
         <Route path="screening/:childId" element={<ScreeningFlow />} />
         <Route path="screening/:screeningId/results" element={<ScreeningResults />} />
         <Route path="history/:childId" element={<History />} />
+        <Route path="all-history" element={<AllScreeningsHistory />} />
       </Route>
 
       {/* Fallback */}

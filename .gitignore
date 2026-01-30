@@ -53,6 +53,7 @@ Thumbs.db
 # Database
 *.db
 *.sqlite
+data/db/
 
 # Package manager locks (optional - include if you want consistent versions)
 # package-lock.json

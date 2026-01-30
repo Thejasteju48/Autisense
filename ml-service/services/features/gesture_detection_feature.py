@@ -1,109 +1,207 @@
 """
-Gesture Frequency Feature Extractor
-Counts intentional hand gestures (waving, pointing, clapping)
-Normalizes per minute
+Gesture Frequency Feature Extractor (Backend Safe)
+Uses MediaPipe Hands + movement-based logic with cooldowns
+Detects intentional hand gestures (time-normalized)
 """
 
-import cv2
+import time
 import numpy as np
 import mediapipe as mp
 from typing import Dict, List
 
+
 class GestureDetectionFeature:
     """
-    Extracts gesture frequency behavioral marker.
-    Detects intentional social gestures.
+    Detects intentional hand gesture presence.
+    Uses movement-based logic with cooldown and persistence.
+    Time-aware processing to prevent flicker and false triggers.
     """
-    
+
     def __init__(self):
+        # ===============================
+        # MEDIAPIPE HANDS
+        # ===============================
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
-            max_num_hands=2,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            max_num_hands=1,
+            min_detection_confidence=0.7,
+            min_tracking_confidence=0.7
         )
+
+        # ===============================
+        # THRESHOLDS (CALIBRATED)
+        # Why these values:
+        # - MOVE_THRESHOLD: 0.03 (3% of frame) = intentional social gestures
+        # - GLITCH_LIMIT: 0.15 (15%) = ignore tracking jumps/glitches
+        # - COOLDOWN_TIME: 0.7s = minimum time between distinct gestures
+        # - PERSISTENCE: 0.20s = gesture must persist to count as intentional
+        # ===============================
+        self.MOVE_THRESHOLD = 0.03  # normalized (3% of frame) - require clear movement
+        self.GLITCH_LIMIT = 0.15  # ignore large tracking jumps
+        self.COOLDOWN_TIME = 0.7  # seconds between gestures
+        self.PERSISTENCE_TIME = 0.20  # minimum gesture duration - filter out noise
+
+        # ===============================
+        # TIME-AWARE STATE
+        # ===============================
+        self.prev_pos = None
+        self.prev_timestamp = None
+        self.gesture_start_time = None
+        self.last_trigger_time = 0.0
+        self.gesture_timestamps: List[float] = []
         
-        # Hand landmark indices
-        self.WRIST = 0
-        self.THUMB_TIP = 4
-        self.INDEX_TIP = 8
-        self.MIDDLE_TIP = 12
-        
-        # Gesture tracking
-        self.gesture_timestamps = []
-        self.frame_count = 0
-    
-    def detect_pointing(self, landmarks) -> bool:
+        self.session_start_time = None
+        self.warmup_duration = 2.0
+        self.total_frames = 0
+
+    # ==================================================
+    # FRAME EXTRACTION (TIME-AWARE WITH PERSISTENCE)
+    # ==================================================
+    def extract(self, image: np.ndarray, timestamp: float = None) -> Dict:
         """
-        Detect pointing gesture.
-        Pointing = index finger extended, others bent
-        """
-        index_tip = np.array([
-            landmarks.landmark[self.INDEX_TIP].x,
-            landmarks.landmark[self.INDEX_TIP].y
-        ])
-        middle_tip = np.array([
-            landmarks.landmark[self.MIDDLE_TIP].x,
-            landmarks.landmark[self.MIDDLE_TIP].y
-        ])
-        wrist = np.array([
-            landmarks.landmark[self.WRIST].x,
-            landmarks.landmark[self.WRIST].y
-        ])
+        Process one frame and detect gesture presence with persistence check.
         
-        # Distance from wrist
-        index_dist = np.linalg.norm(index_tip - wrist)
-        middle_dist = np.linalg.norm(middle_tip - wrist)
-        
-        # Pointing if index extended more than middle
-        return index_dist > middle_dist * 1.2
-    
-    def extract(self, image: np.ndarray) -> Dict:
+        Requires:
+        - Significant movement (> threshold)
+        - No tracking glitches
+        - Cooldown between gestures
+        - Persistence (gesture must last ≥ 150ms)
         """
-        Detect gestures in single frame.
+        # FIXED: Single source of time - only use passed timestamp
+        if timestamp is None:
+            raise ValueError("Timestamp required")
+        current_time = timestamp
         
-        Returns:
-            Dictionary with detected gestures
-        """
-        self.frame_count += 1
+        if self.session_start_time is None:
+            self.session_start_time = current_time
+        
+        self.total_frames += 1
+        elapsed = current_time - self.session_start_time
+
         results = self.hands.process(image)
-        
-        if not results.multi_hand_landmarks:
-            return {'detected': False, 'gestures': []}
-        
-        gestures_detected = []
-        
-        for hand_landmarks in results.multi_hand_landmarks:
-            # Check for pointing
-            if self.detect_pointing(hand_landmarks):
-                gestures_detected.append('pointing')
-                self.gesture_timestamps.append(self.frame_count)
-        
+
+        gesture_detected = False
+
+        if results.multi_hand_landmarks:
+            hand_landmarks = results.multi_hand_landmarks[0].landmark
+
+            # Use palm center (landmark 9) for stability
+            x = hand_landmarks[9].x
+            y = hand_landmarks[9].y
+            current_pos = np.array([x, y])
+
+            if self.prev_pos is not None and self.prev_timestamp is not None:
+                # Calculate normalized movement
+                movement = np.linalg.norm(current_pos - self.prev_pos)
+
+                # Ignore tracking glitches (sudden large jumps)
+                if movement < self.GLITCH_LIMIT:
+
+                    # Check for significant movement
+                    if movement > self.MOVE_THRESHOLD:
+                        
+                        # Start tracking gesture
+                        if self.gesture_start_time is None:
+                            self.gesture_start_time = current_time
+                        
+                        # Check persistence (gesture must last ≥ 150ms)
+                        gesture_duration = current_time - self.gesture_start_time
+                        
+                        if gesture_duration >= self.PERSISTENCE_TIME:
+                            # Check cooldown (prevent double-counting)
+                            if elapsed >= self.warmup_duration and \
+                               current_time - self.last_trigger_time > self.COOLDOWN_TIME:
+                                gesture_detected = True
+                                self.last_trigger_time = current_time
+                                self.gesture_timestamps.append(current_time)
+                                self.gesture_start_time = None  # Reset for next gesture
+                    else:
+                        # Movement too small - reset gesture tracking
+                        self.gesture_start_time = None
+
+            self.prev_pos = current_pos
+            self.prev_timestamp = current_time
+
+        else:
+            # No hand detected
+            self.prev_pos = None
+            self.prev_timestamp = None
+            self.gesture_start_time = None
+
         return {
-            'detected': len(gestures_detected) > 0,
-            'gestures': gestures_detected,
-            'count': len(gestures_detected)
+            "detected": gesture_detected,
+            "gesture_present": gesture_detected,
+            "warmup": elapsed < self.warmup_duration
         }
-    
+
+    # ==================================================
+    # SUMMARY (TIME-NORMALIZED)
+    # ==================================================
     def get_summary(self, session_duration_seconds: float) -> Dict:
-        """Get gesture frequency per minute"""
+        """
+        Compute gesture frequency per minute (time-normalized).
+        
+        Clinical interpretation:
+        - Normal: 2-10 gestures/min (typical social interaction)
+        - Low: < 2 gestures/min (reduced social gesturing - autism marker)
+        - High: > 10 gestures/min (hyperactive gesturing)
+        """
         if session_duration_seconds <= 0:
             return {
-                'gesture_frequency_per_minute': 0.0,
-                'total_gestures': 0
+                "gesture_frequency_per_minute": 0.0,
+                "level": "insufficient_data",
+                "interpretation": "Invalid session duration",
+                "total_gestures": 0,
+                "total_frames": self.total_frames
             }
+
+        # Calculate effective duration (excluding warm-up)
+        effective_duration = session_duration_seconds - self.warmup_duration
+        if effective_duration <= 0:
+            return {
+                "gesture_frequency_per_minute": 0.0,
+                "level": "insufficient_data",
+                "interpretation": "Session too short",
+                "total_gestures": 0,
+                "total_frames": self.total_frames
+            }
+
+        total_gestures = len(self.gesture_timestamps)
+        frequency = (total_gestures / effective_duration) * 60
         
-        gesture_count = len(self.gesture_timestamps)
-        frequency = (gesture_count / session_duration_seconds) * 60
-        
+        # Safety clamp: Maximum realistic gesture frequency is ~30/min
+        frequency = min(frequency, 30.0)
+
+        # Clinical interpretation
+        if frequency < 1.5:
+            level = "low"
+            interpretation = "Limited social gesturing (potential autism indicator)"
+        elif frequency <= 10:
+            level = "normal"
+            interpretation = "Normal gesture frequency"
+        else:
+            level = "high"
+            interpretation = "Frequent gesturing"
+
         return {
-            'gesture_frequency_per_minute': round(frequency, 2),
-            'total_gestures': gesture_count,
-            'total_frames': self.frame_count
+            "gesture_frequency_per_minute": round(frequency, 2),
+            "level": level,
+            "interpretation": interpretation,
+            "total_gestures": total_gestures,
+            "effective_duration_seconds": round(effective_duration, 1),
+            "total_frames": self.total_frames
         }
-    
+
+    # ==================================================
+    # RESET
+    # ==================================================
     def reset(self):
-        """Reset for new session"""
+        """Reset state for new session"""
+        self.prev_pos = None
+        self.prev_timestamp = None
+        self.gesture_start_time = None
+        self.last_trigger_time = 0.0
         self.gesture_timestamps = []
-        self.frame_count = 0
+        self.session_start_time = None
+        self.total_frames = 0

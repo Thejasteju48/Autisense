@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { childrenAPI, screeningAPI } from '../services/api';
-import LiveVideoCaptureEnhanced from '../components/LiveVideoCaptureEnhanced';
+import VideoInputSelector from '../components/VideoInputSelector';
+import VideoRecorder from '../components/VideoRecorder';
+import VideoUploader from '../components/VideoUploader';
 import { PlayIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 /**
- * LIVE VIDEO-BASED AUTISM SCREENING FLOW
+ * BATCH VIDEO-BASED AUTISM SCREENING FLOW
  * 
  * Flow:
  * 1. Welcome screen with instructions
@@ -24,9 +26,10 @@ const ScreeningFlow = () => {
   const [child, setChild] = useState(null);
   const [screeningId, setScreeningId] = useState(null);
   const [currentStep, setCurrentStep] = useState('welcome'); 
-  // Steps: welcome -> video -> questionnaire -> processing -> complete
+  // Steps: welcome -> video-select -> video-record/video-upload -> questionnaire -> processing -> complete
   const [loading, setLoading] = useState(true);
   const [videoData, setVideoData] = useState(null);
+  const [videoInputMethod, setVideoInputMethod] = useState(null); // 'live-recording' or 'pre-recorded'
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -66,15 +69,29 @@ const ScreeningFlow = () => {
   };
 
   const handleStartAssessment = () => {
-    setCurrentStep('video');
+    setCurrentStep('video-select');
+  };
+  
+  const handleVideoInputSelect = (method) => {
+    setVideoInputMethod(method);
+    if (method === 'live-recording') {
+      setCurrentStep('video-record');
+    } else {
+      setCurrentStep('video-upload');
+    }
+  };
+  
+  const handleBackToSelect = () => {
+    setVideoInputMethod(null);
+    setCurrentStep('video-select');
   };
 
   const handleVideoComplete = async (data) => {
-    console.log('✅ Video capture complete:', {
-      frameCount: data.frameCount,
+    console.log('✅ Video capture/upload complete:', {
+      videoSource: data.videoSource,
       duration: data.duration,
-      hasVideoFeatures: !!data.videoFeatures,
-      videoFeaturesKeys: data.videoFeatures ? Object.keys(data.videoFeatures) : []
+      hasVideoData: !!data.videoData,
+      videoDataKeys: data.videoData ? Object.keys(data.videoData) : []
     });
     setVideoData(data);
     setCurrentStep('questionnaire');
@@ -88,20 +105,22 @@ const ScreeningFlow = () => {
       jaundice: questionnaireData.jaundice,
       family_asd: questionnaireData.family_asd,
       hasVideoData: !!videoData,
-      videoFeaturesKeys: videoData?.videoFeatures ? Object.keys(videoData.videoFeatures) : []
+      videoSource: videoData?.videoSource,
+      videoDataKeys: videoData?.videoData ? Object.keys(videoData.videoData) : []
     });
     
     setCurrentStep('processing');
     try {
       // Submit questionnaire along with video data
-      const videoFeaturesToSend = videoData?.videoFeatures || {};
+      const videoFeaturesToSend = videoData?.videoData || {};
       console.log('📤 Sending video features to backend:', videoFeaturesToSend);
       
       const submitRes = await screeningAPI.submitQuestionnaire(screeningId, {
         responses: questionnaireData.responses,
         jaundice: questionnaireData.jaundice,
         family_asd: questionnaireData.family_asd,
-        videoData: videoFeaturesToSend
+        videoData: videoFeaturesToSend,
+        videoSource: videoData?.videoSource || 'pre-recorded'
       });
       
       console.log('✅ Questionnaire submitted successfully:', submitRes.data);
@@ -210,8 +229,13 @@ const ScreeningFlow = () => {
         </div>
       )}
 
-      {/* Video Capture Screen */}
-      {currentStep === 'video' && (
+      {/* Video Input Selection Screen */}
+      {currentStep === 'video-select' && (
+        <VideoInputSelector onSelect={handleVideoInputSelect} />
+      )}
+
+      {/* Live Video Recording Screen */}
+      {currentStep === 'video-record' && (
         <div className="py-12 px-6">
           <div className="mb-8 text-center">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
@@ -222,12 +246,30 @@ const ScreeningFlow = () => {
             </p>
           </div>
           
-          <LiveVideoCaptureEnhanced
+          <VideoRecorder
             screeningId={screeningId}
-            duration={300}
+            duration={240}
             onComplete={handleVideoComplete}
           />
+          
+          <div className="text-center mt-6">
+            <button
+              onClick={handleBackToSelect}
+              className="text-gray-600 hover:text-gray-900 underline"
+            >
+              ← Back to selection
+            </button>
+          </div>
         </div>
+      )}
+      
+      {/* Video Upload Screen */}
+      {currentStep === 'video-upload' && (
+        <VideoUploader
+          screeningId={screeningId}
+          onComplete={handleVideoComplete}
+          onBack={handleBackToSelect}
+        />
       )}
 
       {/* Questionnaire Screen */}

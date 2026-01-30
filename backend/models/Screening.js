@@ -25,41 +25,86 @@ const screeningSchema = new mongoose.Schema({
     default: 'Live Video'
   },
   
-  // Live Video Features (7 behavioral markers)
+  // Video Source (live recording or pre-recorded upload)
+  videoSource: {
+    type: String,
+    enum: ['live-recording', 'pre-recorded'],
+    default: 'pre-recorded'
+  },
+  
+  // Parent location for recommendations
+  parentLocation: {
+    city: String,
+    state: String,
+    country: String,
+    postalCode: String
+  },
+  
+  // Live Video Features (7 behavioral markers from ML service)
   liveVideoFeatures: {
+    // Feature 1: Eye Contact
     eyeContactRatio: {
       type: Number,
       min: 0,
       max: 1
     },
+    eyeContactLevel: String,  // low, normal, high
+    eyeContactInterpretation: String,
+    
+    // Feature 2: Blink Rate
     blinkRatePerMinute: Number,
+    blinkLevel: String,  // low, normal, high
+    blinkInterpretation: String,
+    
+    // Feature 3: Head Movement Rate
     headMovementRate: Number,
-    headRepetitiveMovement: {
-      detected: Boolean,
-      oscillations: Number,
-      horizontal: Number,
-      vertical: Number
+    headMovementLevel: String,  // low, normal, high
+    headMovementInterpretation: String,
+    
+    // Feature 4: Head Repetitive Movements
+    headMovements: {
+      present: Boolean,
+      repetitive: Boolean,
+      description: String
     },
-    handRepetitiveMovement: {
-      leftHand: {
-        detected: Boolean,
-        oscillations: Number,
-        intensity: Number
-      },
-      rightHand: {
-        detected: Boolean,
-        oscillations: Number,
-        intensity: Number
-      }
+    
+    // Feature 5: Hand Repetitive Movements (Stimming)
+    handStimming: {
+      present: Boolean,
+      severity: String,  // NORMAL, LOW, MODERATE, HIGH
+      description: String
     },
-    gestureFrequencyPerMinute: Number,
+    
+    // Feature 6: Social Gestures
+    socialGestures: {
+      present: Boolean,
+      frequency_per_minute: Number,
+      description: String
+    },
+    
+    // Feature 7: Facial Expression Variability (DeepFace)
     facialExpressionVariability: Number,
+    expressionLevel: String,  // low, normal, high
+    expressionInterpretation: String,
+    
+    // Session metadata
     sessionDuration: Number,
     totalFrames: Number,
+    
+    // Clinical interpretation from ML service
     interpretation: {
       concerns: [String],
       riskScore: Number,
-      summary: String
+      risk_level: String,  // Low, Moderate, High
+      summary: String,
+      total_concerns: Number
+    },
+    
+    // Data quality metrics
+    dataQuality: {
+      face_detection_ratio: Number,
+      blink_data_quality: mongoose.Schema.Types.Mixed,
+      expression_detection_rate: Number
     }
   },
   

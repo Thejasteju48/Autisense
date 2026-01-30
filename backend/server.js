@@ -10,7 +10,6 @@ dotenv.config();
 const authRoutes = require('./routes/authRoutes');
 const childRoutes = require('./routes/childRoutes');
 const screeningRoutes = require('./routes/screeningRoutes');
-const videoFeatureRoutes = require('./routes/videoFeatureRoutes');
 
 const app = express();
 
@@ -31,7 +30,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/children', childRoutes);
 app.use('/api/screenings', screeningRoutes);
-app.use('/api/video-features', videoFeatureRoutes);
+app.use('/api/video', require('./routes/videoProcessingRoutes'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -63,6 +62,11 @@ mongoose.connect(process.env.MONGODB_URI, {
     console.log(`📊 Environment: ${process.env.NODE_ENV}`);
     console.log(`🌐 Ready to accept connections`);
   });
+
+  // Set server timeouts for long video processing
+  server.timeout = 900000; // 15 minutes
+  server.keepAliveTimeout = 900000; // 15 minutes
+  server.headersTimeout = 910000; // Slightly longer than keepAliveTimeout
 
   server.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {

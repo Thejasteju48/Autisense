@@ -90,49 +90,43 @@ class VideoBehaviorPredictor:
         else:
             return 10.0  # Normal
     
-    def calculate_head_repetition_score(self, repetition_data: Dict) -> float:
+    def calculate_head_repetition_score(self, head_movements: Dict) -> float:
         """
-        Score repetitive head movements.
-        Repetitive head nodding/shaking is a characteristic behavior.
+        Score head movements and repetition.
+        Checks if repetitive head movements are present.
         """
-        if not isinstance(repetition_data, dict):
+        if not isinstance(head_movements, dict):
             return 0.0
         
-        detected = repetition_data.get('detected', False)
-        oscillations = repetition_data.get('oscillations', 0)
+        repetitive = head_movements.get('repetitive', False)
+        present = head_movements.get('present', False)
         
-        if not detected:
-            return 0.0
-        
-        if oscillations > self.thresholds['head_oscillation_threshold']:
-            return 80.0  # Significant repetition
+        if repetitive:
+            return 80.0  # Repetitive head movements detected
+        elif present:
+            return 20.0  # Normal head movements
         else:
-            return 40.0  # Some repetition
+            return 0.0  # Minimal movement
     
-    def calculate_hand_repetition_score(self, hand_data: Dict) -> float:
+    def calculate_hand_repetition_score(self, hand_stimming: Dict) -> float:
         """
-        Score repetitive hand movements (flapping, twisting).
-        Checks both left and right hands.
+        Score hand stimming behaviors.
+        Checks severity of repetitive hand movements.
         """
-        if not isinstance(hand_data, dict):
+        if not isinstance(hand_stimming, dict):
             return 0.0
         
-        left_data = hand_data.get('leftHand', {})
-        right_data = hand_data.get('rightHand', {})
+        present = hand_stimming.get('present', False)
+        severity = hand_stimming.get('severity', 'NORMAL')
         
-        left_detected = left_data.get('detected', False)
-        right_detected = right_data.get('detected', False)
-        left_osc = left_data.get('oscillations', 0)
-        right_osc = right_data.get('oscillations', 0)
-        
-        max_oscillations = max(left_osc, right_osc)
-        
-        if (left_detected or right_detected) and max_oscillations > self.thresholds['hand_oscillation_threshold']:
-            return 80.0  # Significant repetition
-        elif left_detected or right_detected:
-            return 40.0  # Some repetition
-        else:
+        if not present or severity == 'NORMAL':
             return 0.0
+        elif severity == 'LOW':
+            return 30.0  # Subtle stimming
+        elif severity == 'MODERATE':
+            return 60.0  # Noticeable stimming
+        else:  # HIGH
+            return 90.0  # Prominent stimming
     
     def calculate_gesture_score(self, gesture_frequency: float) -> float:
         """
@@ -172,18 +166,18 @@ class VideoBehaviorPredictor:
         eye_contact_ratio = video_features.get('eye_contact_ratio', 0.5)
         blink_rate = video_features.get('blink_rate_per_minute', 15)
         head_movement = video_features.get('head_movement_rate', 0.2)
-        head_repetition = video_features.get('head_repetitive_movement', {})
-        hand_repetition = video_features.get('hand_repetitive_movement', {})
-        gesture_freq = video_features.get('gesture_frequency_per_minute', 3)
+        head_movements = video_features.get('head_movements', {})
+        hand_stimming = video_features.get('hand_stimming', {})
+        social_gestures = video_features.get('social_gestures', {})
         expression_var = video_features.get('facial_expression_variability', 0.4)
         
         # Calculate individual scores
         eye_score = self.calculate_eye_contact_score(eye_contact_ratio)
         blink_score = self.calculate_blink_rate_score(blink_rate)
         head_move_score = self.calculate_head_movement_score(head_movement)
-        head_rep_score = self.calculate_head_repetition_score(head_repetition)
-        hand_rep_score = self.calculate_hand_repetition_score(hand_repetition)
-        gesture_score = self.calculate_gesture_score(gesture_freq)
+        head_rep_score = self.calculate_head_repetition_score(head_movements)
+        hand_rep_score = self.calculate_hand_repetition_score(hand_stimming)
+        gesture_score = self.calculate_gesture_score(social_gestures.get('frequency_per_minute', 0))
         expression_score = self.calculate_expression_score(expression_var)
         
         # Weighted fusion
@@ -203,7 +197,7 @@ class VideoBehaviorPredictor:
         # Generate LLM-powered interpretation
         interpretation = self._generate_llm_interpretation(
             video_score, risk_level, eye_contact_ratio, blink_rate, head_movement,
-            head_repetition, hand_repetition, gesture_freq, expression_var
+            head_movements, hand_stimming, social_gestures, expression_var
         )
         
         return {
@@ -233,7 +227,7 @@ class VideoBehaviorPredictor:
     def _generate_llm_interpretation(self, score: float, risk_level: str,
                                      eye_contact: float, blink_rate: float, 
                                      head_movement: float, head_rep: Dict, 
-                                     hand_rep: Dict, gesture_freq: float, 
+                                     hand_rep: Dict, social_gestures: Dict,
                                      expression_var: float) -> str:
         """Generate AI-powered clinical interpretation using Groq LLM"""
         
@@ -241,10 +235,15 @@ class VideoBehaviorPredictor:
             # Fallback to basic interpretation if no API key
             return self._generate_basic_interpretation(
                 score, eye_contact, blink_rate, head_movement, head_rep, 
-                hand_rep, gesture_freq, expression_var
+                hand_rep, social_gestures.get('frequency_per_minute', 0), expression_var
             )
         
         try:
+            # Extract values before f-string to avoid format errors
+            head_detected = head_rep.get('repetitive', False) if isinstance(head_rep, dict) else False
+            hand_detected = hand_rep.get('present', False) if isinstance(hand_rep, dict) else False
+            gesture_freq = social_gestures.get('frequency_per_minute', 0) if isinstance(social_gestures, dict) else 0
+            
             # Prepare detailed behavioral data for LLM
             prompt = f"""As a clinical psychologist specializing in autism assessment, provide a professional interpretation of these video behavioral observations:
 
@@ -255,9 +254,9 @@ class VideoBehaviorPredictor:
 - Gesture Frequency: {gesture_freq:.1f} per minute (Normal: >3/min)
 - Facial Expression Variability: {expression_var:.2f} (Normal: >0.40)
 - Blink Rate: {blink_rate:.1f} per minute (Normal: 15-20/min)
-- Head Movement Rate: {head_movement:.2f}
-- Head Repetitive Movement: {"Detected" if head_rep.get('detected') else "Not detected"} ({head_rep.get('oscillations', 0)} oscillations)
-- Hand Repetitive Movement: {"Detected" if hand_rep.get('leftHand', {}).get('detected') or hand_rep.get('rightHand', {}).get('detected') else "Not detected"}
+- Head Movement Rate: {head_movement:.4f}
+- Head Repetitive Movement: {"Detected" if head_detected else "Not detected"}
+- Hand Repetitive Movement: {"Detected" if hand_detected else "Not detected"}
 
 Provide a concise, evidence-based interpretation (3-4 sentences) that:
 1. Summarizes the most significant findings

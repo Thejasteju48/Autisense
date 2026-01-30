@@ -56,33 +56,38 @@ AutismProject/
 ├── backend/                    # Node.js + Express Server
 │   ├── controllers/           # Business logic
 │   │   ├── authController.js
-│   │   ├── childController.js
-│   │   ├── screeningController.js
-│   │   └── gameController.js
+│   │   └── screeningController.js
 │   ├── models/               # MongoDB schemas
 │   │   ├── User.js
-│   │   ├── Child.js
-│   │   ├── Screening.js
-│   │   └── GameSession.js
+│   │   └── Screening.js
 │   ├── routes/               # API routes
 │   │   ├── authRoutes.js
-│   │   ├── childRoutes.js
-│   │   ├── screeningRoutes.js
-│   │   └── gameRoutes.js
-│   ├── middleware/           # Auth & upload middleware
-│   │   ├── auth.js
-│   │   └── upload.js
+│   │   └── screeningRoutes.js
+│   ├── middleware/           # Auth middleware
+│   │   └── authMiddleware.js
+│   ├── services/             # Business logic services
+│   │   └── pdfService.js
 │   ├── utils/                # Utilities
-│   │   └── pdfGenerator.js
+│   ├── uploads/              # Temporary video storage
+│   ├── reports/              # Generated PDF reports
 │   ├── server.js             # Entry point
 │   ├── package.json
 │   └── .env.example
 │
 ├── ml-service/                # Python FastAPI Service
-│   ├── services/             # ML services
-│   │   ├── video_analyzer.py
-│   │   ├── audio_analyzer.py
-│   │   └── autism_predictor.py
+│   ├── services/
+│   │   ├── features/         # 7 feature extractors
+│   │   │   ├── eye_contact_feature.py
+│   │   │   ├── blink_rate_feature.py
+│   │   │   ├── head_movement_feature.py
+│   │   │   ├── head_repetition_feature.py
+│   │   │   ├── hand_repetition_feature.py
+│   │   │   ├── gesture_detection_feature.py
+│   │   │   └── expression_variability_feature.py
+│   │   └── models/           # ML prediction models
+│   │       ├── questionnaire_predictor.py
+│   │       ├── video_behavior_predictor.py
+│   │       └── video_orchestrator.py
 │   ├── main.py               # FastAPI app
 │   ├── requirements.txt
 │   └── .env.example
@@ -90,22 +95,18 @@ AutismProject/
 └── frontend/                  # React Application
     ├── src/
     │   ├── components/       # Reusable components
-    │   │   ├── Layout.jsx
-    │   │   └── Navbar.jsx
+    │   │   ├── ui/          # Base UI components
+    │   │   └── VideoRecorder.jsx  # Video recording component
     │   ├── context/          # React context
     │   │   └── AuthContext.jsx
     │   ├── pages/            # Page components
-    │   │   ├── Login.jsx
-    │   │   ├── Register.jsx
-    │   │   ├── Dashboard.jsx
-    │   │   ├── AddChild.jsx
-    │   │   ├── ChildProfile.jsx
-    │   │   ├── Screening.jsx
-    │   │   ├── ScreeningResults.jsx
-    │   │   ├── Games.jsx
+    │   │   ├── Home.jsx
+    │   │   ├── ScreeningForm.jsx
+    │   │   ├── Result.jsx
     │   │   └── History.jsx
     │   ├── services/         # API services
     │   │   └── api.js
+    │   ├── hooks/            # Custom React hooks
     │   ├── App.jsx
     │   ├── main.jsx
     │   └── index.css

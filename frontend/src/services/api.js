@@ -84,6 +84,7 @@ export const screeningAPI = {
   getOne: (screeningId) => api.get(`/screenings/${screeningId}`),
   getByChild: (childId) => api.get(`/screenings/child/${childId}`),
   getLatest: (childId) => api.get(`/screenings/child/${childId}/latest`),
+  getAllUserScreenings: () => api.get('/screenings/user/all'),
   downloadReport: (screeningId) => 
     api.get(`/screenings/${screeningId}/report`, { responseType: 'blob' }),
 };

@@ -69,9 +69,17 @@ const Dashboard = () => {
       />
 
       <div className="mb-8">
-        <Link to="/children/add">
-          <Button icon={PlusIcon}>Add New Child</Button>
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/children/add">
+            <Button icon={PlusIcon}>Add New Child</Button>
+          </Link>
+          <Link to="/all-history">
+            <button className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg font-medium">
+              <ChartBarIcon className="w-5 h-5" />
+              <span>View All Screening History</span>
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* Children List */}

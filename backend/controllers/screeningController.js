@@ -59,7 +59,7 @@ exports.startScreening = async (req, res) => {
 exports.submitQuestionnaire = async (req, res) => {
   try {
     const { id } = req.params;
-    const { responses, videoData, jaundice, family_asd } = req.body;
+    const { responses, videoData, jaundice, family_asd, parentLocation, videoSource } = req.body;
 
     console.log('📝 Received questionnaire submission:', {
       screeningId: id,
@@ -67,7 +67,9 @@ exports.submitQuestionnaire = async (req, res) => {
       responsesLength: Array.isArray(responses) ? responses.length : 'N/A',
       firstResponse: Array.isArray(responses) && responses.length > 0 ? responses[0] : null,
       jaundice,
-      family_asd
+      family_asd,
+      hasLocation: !!parentLocation,
+      videoSource: videoSource || 'pre-recorded'
     });
 
     const screening = await Screening.findOne({ _id: id, user: req.user._id });
@@ -90,40 +92,94 @@ exports.submitQuestionnaire = async (req, res) => {
       jaundice: jaundice || 'no',
       family_asd: family_asd || 'no'
     };
+    
+    // Set video source
+    screening.videoSource = videoSource || 'pre-recorded';
+
+    // Save parent location if provided
+    if (parentLocation) {
+      screening.parentLocation = {
+        city: parentLocation.city || '',
+        state: parentLocation.state || '',
+        country: parentLocation.country || '',
+        postalCode: parentLocation.postalCode || ''
+      };
+    }
 
     // Save live video features if provided
     if (videoData && Object.keys(videoData).length > 0) {
-      // Map ML service features to database schema
+      // Map ML service features to database schema (all 7 features)
       screening.liveVideoFeatures = {
-        eyeContactRatio: videoData.eye_contact_ratio,
-        blinkRatePerMinute: videoData.blink_rate_per_minute,
-        headMovementRate: videoData.head_movement_rate,
-        headRepetitiveMovement: videoData.head_repetitive_movement || {
-          detected: false,
-          oscillations: 0,
-          horizontal: 0,
-          vertical: 0
+        // Feature 1: Eye Contact
+        eyeContactRatio: videoData.eye_contact_ratio || 0,
+        eyeContactLevel: videoData.eye_contact_level || 'unknown',
+        eyeContactInterpretation: videoData.eye_contact_interpretation || '',
+        
+        // Feature 2: Blink Rate
+        blinkRatePerMinute: videoData.blink_rate_per_minute || 0,
+        blinkLevel: videoData.blink_level || 'unknown',
+        blinkInterpretation: videoData.blink_interpretation || '',
+        
+        // Feature 3: Head Movement Rate
+        headMovementRate: videoData.head_movement_avg_per_frame || 0,
+        headMovementLevel: videoData.head_movement_level || 'unknown',
+        headMovementInterpretation: videoData.head_movement_interpretation || '',
+        
+        // Feature 4: Head Repetitive Movements
+        headMovements: videoData.head_movements || {
+          present: false,
+          repetitive: false,
+          description: 'No data'
         },
-        handRepetitiveMovement: videoData.hand_repetitive_movement || {
-          leftHand: { detected: false, oscillations: 0, intensity: 0 },
-          rightHand: { detected: false, oscillations: 0, intensity: 0 }
+        
+        // Feature 5: Hand Repetitive Movements (Stimming)
+        handStimming: videoData.hand_stimming || {
+          present: false,
+          severity: 'NORMAL',
+          description: 'No repetitive hand movements detected'
         },
-        gestureFrequencyPerMinute: videoData.gesture_frequency_per_minute,
-        facialExpressionVariability: videoData.facial_expression_variability,
-        sessionDuration: videoData.session_duration_seconds,
-        totalFrames: videoData.total_frames_processed,
-        interpretation: videoData.interpretation || {
+        
+        // Feature 6: Social Gestures
+        socialGestures: videoData.social_gestures || {
+          present: false,
+          frequency_per_minute: 0,
+          description: 'No social gestures detected'
+        },
+        
+        // Feature 7: Facial Expression Variability
+        facialExpressionVariability: videoData.facial_expression_variability || 0,
+        expressionLevel: videoData.expression_level || 'unknown',
+        expressionInterpretation: videoData.expression_interpretation || '',
+        
+        // Session metadata (match ML service output keys)
+        sessionDuration: videoData.sessionDuration || videoData.session_duration_seconds || 0,
+        totalFrames: videoData.totalFrames || videoData.total_frames_processed || 0,
+        
+        // Clinical interpretation from ML service
+        interpretation: videoData.clinical_interpretation || {
           concerns: [],
           riskScore: 0,
-          summary: ''
+          risk_level: 'Low',
+          summary: '',
+          total_concerns: 0
+        },
+        
+        // Data quality metrics
+        dataQuality: videoData.data_quality || {
+          face_detection_ratio: 0,
+          blink_data_quality: {},
+          expression_detection_rate: 0
         }
       };
       
-      console.log('✓ Saved live video features:', {
-        eyeContact: screening.liveVideoFeatures.eyeContactRatio,
-        blinkRate: screening.liveVideoFeatures.blinkRatePerMinute,
-        gestures: screening.liveVideoFeatures.gestureFrequencyPerMinute,
-        expressions: screening.liveVideoFeatures.facialExpressionVariability
+      console.log('✓ Saved all 7 behavioral features:', {
+        '1_EyeContact': screening.liveVideoFeatures.eyeContactRatio,
+        '2_BlinkRate': screening.liveVideoFeatures.blinkRatePerMinute,
+        '3_HeadMovement': screening.liveVideoFeatures.headMovementRate,
+        '4_HeadRepetitive': screening.liveVideoFeatures.headMovements?.repetitive,
+        '5_HandStimming': screening.liveVideoFeatures.handStimming?.present,
+        '6_Gestures': screening.liveVideoFeatures.socialGestures?.frequency_per_minute,
+        '7_Expressions': screening.liveVideoFeatures.facialExpressionVariability
       });
     }
 
@@ -210,9 +266,21 @@ exports.completeScreening = async (req, res) => {
           eye_contact_ratio: screening.liveVideoFeatures.eyeContactRatio || 0.5,
           blink_rate_per_minute: screening.liveVideoFeatures.blinkRatePerMinute || 15,
           head_movement_rate: screening.liveVideoFeatures.headMovementRate || 0.2,
-          head_repetitive_movement: screening.liveVideoFeatures.headRepetitiveMovement || {},
-          hand_repetitive_movement: screening.liveVideoFeatures.handRepetitiveMovement || {},
-          gesture_frequency_per_minute: screening.liveVideoFeatures.gestureFrequencyPerMinute || 3,
+          head_movements: screening.liveVideoFeatures.headMovements || {
+            present: false,
+            repetitive: false,
+            description: 'No data'
+          },
+          hand_stimming: screening.liveVideoFeatures.handStimming || {
+            present: false,
+            severity: 'NORMAL',
+            description: 'No repetitive hand movements detected'
+          },
+          social_gestures: screening.liveVideoFeatures.socialGestures || {
+            present: false,
+            frequency_per_minute: 0,
+            description: 'No social gestures detected'
+          },
           facial_expression_variability: screening.liveVideoFeatures.facialExpressionVariability || 0.4
         };
         
@@ -332,13 +400,16 @@ exports.getScreening = async (req, res) => {
     const screening = await Screening.findOne({ 
       _id: req.params.id, 
       user: req.user._id 
-    }).populate('child', 'name nickname dateOfBirth profileImage');
+    })
+    .populate('child', 'name nickname dateOfBirth profileImage ageInMonths gender')
+    .populate('user', 'name email');
 
     if (!screening) {
       return res.status(404).json({ message: 'Screening not found' });
     }
 
-    res.json({ success: true, data: screening });
+    // Match frontend expected format: { success: true, data: { screening: ... } }
+    res.json({ success: true, data: { screening } });
   } catch (error) {
     console.error('Error fetching screening:', error);
     res.status(500).json({ message: 'Server error' });
@@ -359,7 +430,7 @@ exports.getScreeningsByChild = async (req, res) => {
       status: 'completed'
     })
     .sort({ createdAt: -1 })
-    .select('finalScore riskLevel createdAt completedAt interpretation');
+    .select('finalScore riskLevel createdAt completedAt interpretation liveVideoFeatures questionnaire status');
 
     if (isLatest) {
       const screening = await query.limit(1).exec();
@@ -373,9 +444,30 @@ exports.getScreeningsByChild = async (req, res) => {
     }
 
     const screenings = await query.exec();
-    res.json({ success: true, data: screenings });
+    res.json({ success: true, data: { screenings } });
   } catch (error) {
     console.error('Error fetching screenings:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get all screenings for current user (across all children)
+// @route   GET /api/screenings/user/all
+// @access  Private
+exports.getAllUserScreenings = async (req, res) => {
+  try {
+    const screenings = await Screening.find({ 
+      user: req.user._id,
+      status: 'completed'
+    })
+    .populate('child', 'name nickname profileImage dateOfBirth gender ageInMonths')
+    .sort({ completedAt: -1, createdAt: -1 })
+    .select('child finalScore riskLevel createdAt completedAt interpretation liveVideoFeatures questionnaire status')
+    .lean();
+
+    res.json({ success: true, data: { screenings } });
+  } catch (error) {
+    console.error('Error fetching all user screenings:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -443,5 +535,154 @@ exports.deleteScreening = async (req, res) => {
   } catch (error) {
     console.error('Error deleting screening:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Upload and process video for screening
+// @route   POST /api/screenings/:id/video
+// @access  Private
+exports.uploadVideo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const videoFile = req.file;
+
+    if (!videoFile) {
+      return res.status(400).json({ message: 'No video file uploaded' });
+    }
+
+    console.log(`📹 Received video for screening ${id}:`, {
+      size: `${(videoFile.size / (1024 * 1024)).toFixed(2)} MB`,
+      mimetype: videoFile.mimetype,
+      originalname: videoFile.originalname
+    });
+
+    // Verify screening exists and belongs to user
+    const screening = await Screening.findOne({ _id: id, user: req.user._id });
+    if (!screening) {
+      return res.status(404).json({ message: 'Screening not found' });
+    }
+
+    // Create form data to send to ML service
+    const FormData = require('form-data');
+    const formData = new FormData();
+    formData.append('video', videoFile.buffer, {
+      filename: videoFile.originalname,
+      contentType: videoFile.mimetype
+    });
+    formData.append('screening_id', id);
+    formData.append('duration', '180'); // Default 3 minutes, can be adjusted
+
+    console.log('📤 Forwarding video to ML service for analysis...');
+
+    // Send to ML service
+    const mlResponse = await axios.post(
+      `${ML_SERVICE_URL}/video/process-complete`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders()
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        timeout: 600000 // 10 minutes timeout
+      }
+    );
+
+    console.log('✅ ML processing complete:', {
+      frames_processed: mlResponse.data.frames_processed,
+      duration: mlResponse.data.duration
+    });
+
+    const videoData = mlResponse.data.features;
+
+    // Save features to database (all 7 behavioral features)
+    screening.liveVideoFeatures = {
+      // Feature 1: Eye Contact
+      eyeContactRatio: videoData.eye_contact_ratio || 0,
+      eyeContactLevel: videoData.eye_contact_level || 'unknown',
+      eyeContactInterpretation: videoData.eye_contact_interpretation || '',
+      
+      // Feature 2: Blink Rate
+      blinkRatePerMinute: videoData.blink_rate_per_minute || 0,
+      blinkLevel: videoData.blink_level || 'unknown',
+      blinkInterpretation: videoData.blink_interpretation || '',
+      
+      // Feature 3: Head Movement Rate
+      headMovementRate: videoData.head_movement_avg_per_frame || 0,
+      headMovementLevel: videoData.head_movement_level || 'unknown',
+      headMovementInterpretation: videoData.head_movement_interpretation || '',
+      
+      // Feature 4: Head Repetitive Movements
+      headMovements: videoData.head_movements || {
+        present: false,
+        repetitive: false,
+        description: 'No data'
+      },
+      
+      // Feature 5: Hand Stimming
+      handStimming: videoData.hand_stimming || {
+        present: false,
+        severity: 'NORMAL',
+        description: 'No repetitive hand movements detected'
+      },
+      
+      // Feature 6: Social Gestures
+      socialGestures: videoData.social_gestures || {
+        present: false,
+        frequency_per_minute: 0,
+        description: 'No social gestures detected'
+      },
+      
+      // Feature 7: Facial Expression Variability
+      facialExpressionVariability: videoData.facial_expression_variability || 0,
+      expressionLevel: videoData.expression_level || 'unknown',
+      expressionInterpretation: videoData.expression_interpretation || '',
+      
+      // Session metadata
+      sessionDuration: videoData.sessionDuration || 0,
+      totalFrames: videoData.totalFrames || 0,
+      
+      // Clinical interpretation from ML service
+      interpretation: videoData.clinical_interpretation || {
+        concerns: [],
+        riskScore: 0,
+        risk_level: 'Low'
+      }
+    };
+
+    await screening.save();
+
+    console.log('💾 Saved video features to database:', {
+      eyeContact: screening.liveVideoFeatures.eyeContactRatio,
+      blinkRate: screening.liveVideoFeatures.blinkRatePerMinute,
+      headMovement: screening.liveVideoFeatures.headMovementRate,
+      handStimming: screening.liveVideoFeatures.handStimming.severity,
+      frames: screening.liveVideoFeatures.totalFrames
+    });
+
+    // Return features to frontend
+    res.json({
+      success: true,
+      videoData: mlResponse.data.features,
+      features: mlResponse.data.features,
+      frames_processed: mlResponse.data.frames_processed,
+      duration: mlResponse.data.duration,
+      fps: mlResponse.data.fps
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing video:', error.message);
+    
+    if (error.response) {
+      return res.status(error.response.status).json({
+        message: 'ML service error',
+        error: error.response.data.detail || error.message
+      });
+    }
+    
+    res.status(500).json({
+      message: 'Video processing failed',
+      error: error.message
+    });
   }
 };

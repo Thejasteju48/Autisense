@@ -83,31 +83,88 @@ const History = () => {
                 key={screening._id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="card"
+                className="card hover:shadow-lg transition-shadow"
               >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="flex items-center space-x-3 mb-2">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRiskColor(screening.riskLevel)}`}>
                         {screening.riskLevel} Risk
                       </span>
-                      <span className="text-2xl font-bold text-gray-800">{screening.finalScore.toFixed(1)}%</span>
+                      <span className="text-2xl font-bold text-gray-800">{screening.finalScore?.toFixed(1) || 'N/A'}%</span>
                     </div>
-                    <p className="text-sm text-gray-500">
-                      {screening.status === 'completed' 
-                        ? `Completed ${new Date(screening.completedAt).toLocaleDateString()}`
-                        : `Started ${new Date(screening.createdAt).toLocaleDateString()}`
-                      }
-                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Screening Date</p>
+                        <p className="text-sm font-medium text-gray-700">
+                          {screening.status === 'completed' 
+                            ? new Date(screening.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                            : new Date(screening.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                          }
+                        </p>
+                      </div>
+                      
+                      {screening.questionnaire?.score !== undefined && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Questionnaire Score</p>
+                          <p className="text-sm font-medium text-gray-700">
+                            {(screening.questionnaire.score * 100).toFixed(1)}%
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Show summary of features if available */}
+                    {screening.interpretation?.summary && (
+                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                        {screening.interpretation.summary}
+                      </p>
+                    )}
+
+                    {/* Show if video analysis was included */}
+                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                      <span className={screening.liveVideoFeatures ? 'text-green-600 font-medium' : ''}>
+                        {screening.liveVideoFeatures ? '✓ Video Analysis Included' : '○ Questionnaire Only'}
+                      </span>
+                      {screening.interpretation?.llmAnalysis && (
+                        <span className="text-purple-600 font-medium">✓ AI Analysis</span>
+                      )}
+                    </div>
                   </div>
-                  {screening.status === 'completed' && (
-                    <button
-                      onClick={() => window.location.href = `/screening/${screening._id}/results`}
-                      className="btn-secondary"
-                    >
-                      View Details
-                    </button>
-                  )}
+                  
+                  <div className="flex flex-col space-y-2">
+                    {screening.status === 'completed' && (
+                      <>
+                        <button
+                          onClick={() => window.location.href = `/screening/${screening._id}/results`}
+                          className="btn-primary text-sm px-4 py-2"
+                        >
+                          View Details
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await screeningAPI.downloadReport(screening._id);
+                              const url = window.URL.createObjectURL(new Blob([response.data]));
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.setAttribute('download', `screening-report-${screening._id}.pdf`);
+                              document.body.appendChild(link);
+                              link.click();
+                              link.parentNode.removeChild(link);
+                              toast.success('Report downloaded');
+                            } catch (error) {
+                              toast.error('Failed to download report');
+                            }
+                          }}
+                          className="btn-secondary text-sm px-4 py-2"
+                        >
+                          Download PDF
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             ))}

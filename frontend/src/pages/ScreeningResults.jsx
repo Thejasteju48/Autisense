@@ -160,6 +160,28 @@ const ScreeningResults = () => {
               )}
 
               <div className="mb-6">
+                <h3 className="text-xl font-bold mb-3">📊 Data Sources Used</h3>
+                <div className="space-y-3">
+                  <div className="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                    <h4 className="font-semibold text-purple-900 mb-2">🎥 Live Video Analysis (5 minutes)</h4>
+                    <p className="text-sm text-gray-700">7 behavioral features extracted using Computer Vision & Machine Learning: eye contact patterns, blink rate, facial expressions, gestures, head & hand movements</p>
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                    <h4 className="font-semibold text-blue-900 mb-2">📋 Standardized Questionnaire (20 questions)</h4>
+                    <p className="text-sm text-gray-700">Based on validated ASD screening protocols (M-CHAT, CARS) covering social communication, behaviors, and developmental milestones</p>
+                  </div>
+                  <div className="p-4 bg-indigo-50 rounded-lg border-l-4 border-indigo-500">
+                    <h4 className="font-semibold text-indigo-900 mb-2">🤖 AI Clinical Analysis</h4>
+                    <p className="text-sm text-gray-700">Advanced LLM trained on clinical data provides comprehensive interpretation combining video + questionnaire results</p>
+                  </div>
+                  <div className="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
+                    <h4 className="font-semibold text-green-900 mb-2">🎯 ML Risk Prediction Model</h4>
+                    <p className="text-sm text-gray-700">Classification model trained on validated ASD datasets combines all features for final risk score</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6">
                 <h3 className="text-xl font-bold mb-3">Recommendations</h3>
                 <ul className="space-y-2">
                   {screening.interpretation.recommendations.map((rec, i) => (
@@ -168,6 +190,76 @@ const ScreeningResults = () => {
                       <span className="text-gray-700">{rec}</span>
                     </li>
                   ))}
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-xl font-bold mb-3">🚀 Next Steps</h3>
+                <div className={`p-5 rounded-xl border-2 ${
+                  screening.riskLevel === 'High' ? 'bg-red-50 border-red-300' :
+                  screening.riskLevel === 'Moderate' ? 'bg-yellow-50 border-yellow-300' :
+                  'bg-green-50 border-green-300'
+                }`}>
+                  <h4 className={`font-bold text-lg mb-3 ${
+                    screening.riskLevel === 'High' ? 'text-red-900' :
+                    screening.riskLevel === 'Moderate' ? 'text-yellow-900' :
+                    'text-green-900'
+                  }`}>
+                    {screening.riskLevel === 'High' && 'IMMEDIATE ACTIONS RECOMMENDED'}
+                    {screening.riskLevel === 'Moderate' && 'RECOMMENDED ACTIONS'}
+                    {screening.riskLevel === 'Low' && 'SUGGESTED FOLLOW-UP'}
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-gray-800">
+                    {screening.riskLevel === 'High' && (
+                      <>
+                        <li>Schedule appointment with pediatrician <strong>within 1-2 weeks</strong></li>
+                        <li>Request referral to developmental pediatrician or child psychologist</li>
+                        <li>Contact Early Intervention Services (0-3 years) or school district (3+ years)</li>
+                        <li>Document specific behaviors and developmental concerns</li>
+                        <li>Consider starting speech/occupational therapy evaluation</li>
+                      </>
+                    )}
+                    {screening.riskLevel === 'Moderate' && (
+                      <>
+                        <li>Schedule follow-up screening in 3-6 months</li>
+                        <li>Discuss results with pediatrician at next wellness visit</li>
+                        <li>Monitor developmental milestones closely</li>
+                        <li>Consider developmental screening by healthcare provider</li>
+                        <li>Engage in activities that support social-communication skills</li>
+                      </>
+                    )}
+                    {screening.riskLevel === 'Low' && (
+                      <>
+                        <li>Continue routine developmental monitoring</li>
+                        <li>Share results with pediatrician at next visit</li>
+                        <li>Re-screen if new concerns arise</li>
+                        <li>Maintain regular wellness check-ups</li>
+                        <li>Support continued social and communication development</li>
+                      </>
+                    )}
+                  </ol>
+                </div>
+              </div>
+
+              <div className="mb-6 p-5 bg-blue-50 rounded-xl border-2 border-blue-200">
+                <h3 className="text-xl font-bold mb-3 text-blue-900">📚 Helpful Resources</h3>
+                <ul className="space-y-2 text-gray-800">
+                  <li className="flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span><strong>Autism Speaks:</strong> www.autismspeaks.org (1-888-288-4762)</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span><strong>CDC - Learn the Signs, Act Early:</strong> www.cdc.gov/ncbddd/actearly</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span><strong>ASHA (Speech-Language):</strong> www.asha.org</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span><strong>Autism Society:</strong> www.autism-society.org (1-800-328-8476)</span>
+                  </li>
                 </ul>
               </div>
             </>
