@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const axios = require('axios');
-const FormData = require('form-data');
+const fs = require('fs');
+const path = require('path');
 
 // Configure multer for video upload
 const storage = multer.memoryStorage();
@@ -21,6 +22,7 @@ const upload = multer({
 });
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+const EMOTION_SERVICE_URL = process.env.EMOTION_SERVICE_URL || 'http://localhost:8001';
 
 /**
  * POST /api/video/process
@@ -37,43 +39,50 @@ router.post('/process', upload.single('video'), async (req, res) => {
 
     console.log(`📹 Received video: ${videoFile.size} bytes | Duration: ${duration}s | Screening: ${screeningId}`);
 
-    // Create form data to send to ML service
-    const formData = new FormData();
-    formData.append('video', videoFile.buffer, {
-      filename: videoFile.originalname,
-      contentType: videoFile.mimetype
-    });
-    formData.append('duration', duration);
-    formData.append('screening_id', screeningId);
+    const uploadsDir = path.join(__dirname, '../uploads/videos');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
-    console.log('📤 Forwarding video to ML service for processing...');
+    const ext = path.extname(videoFile.originalname) || '.mp4';
+    const filename = `screening-${screeningId || 'video'}-${Date.now()}${ext}`;
+    const filePath = path.join(uploadsDir, filename);
 
-    // Send to ML service
-    const mlResponse = await axios.post(
-      `${ML_SERVICE_URL}/video/process-complete`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders()
-        },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-        timeout: 600000 // 10 minutes timeout (increased for video processing)
+    fs.writeFileSync(filePath, videoFile.buffer);
+
+    console.log('📤 Forwarding video path to ML service for processing...');
+
+    let videoData = null;
+    try {
+      const mlResponse = await axios.post(
+        `${ML_SERVICE_URL}/analyze`,
+        { video_path: filePath },
+        { timeout: 600000 }
+      );
+
+      console.log('✓ ML processing complete:', mlResponse.data);
+      videoData = mlResponse.data;
+
+      try {
+        const emotionResponse = await axios.post(
+          `${EMOTION_SERVICE_URL}/analyze-emotion`,
+          { video_path: filePath },
+          { timeout: 600000 }
+        );
+        videoData.emotion_variation = emotionResponse.data?.emotion_variation || videoData.emotion_variation;
+      } catch (emotionError) {
+        console.error('⚠️ Emotion service failed:', emotionError.message);
       }
-    );
+    } finally {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
 
-    console.log('✓ ML processing complete:', {
-      frames_processed: mlResponse.data.frames_processed,
-      duration: mlResponse.data.duration
-    });
-
-    // Return features
     res.json({
       success: true,
-      features: mlResponse.data.features,
-      frames_processed: mlResponse.data.frames_processed,
-      duration: mlResponse.data.duration,
-      fps: mlResponse.data.fps
+      features: videoData,
+      duration: Number(duration) || 0
     });
 
   } catch (error) {

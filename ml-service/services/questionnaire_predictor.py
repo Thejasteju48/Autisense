@@ -1,194 +1,121 @@
-import joblib
-import pandas as pd
-import numpy as np
 import os
-from pathlib import Path
-from groq import Groq
+from typing import Dict, List
+
+import joblib
+import numpy as np
+import pandas as pd
+
 
 class QuestionnairePredictor:
-    """
-    Autism prediction based on trained questionnaire models.
-    Uses two pre-trained models and averages their predictions.
-    Generates LLM-powered interpretations using Groq.
-    """
-    
+    """Predict autism likelihood from questionnaire responses using trained models."""
+
     def __init__(self):
-        # Load trained models from services directory
-        model_dir = Path(__file__).parent  # ml-service/services/
-        self.model1 = joblib.load(model_dir / "autism_model1.pkl")
-        self.model2 = joblib.load(model_dir / "autism_model2.pkl")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.model_paths = [
+            os.path.join(base_dir, "autism_model1.pkl"),
+            os.path.join(base_dir, "autism_model2.pkl")
+        ]
+        self.models = [joblib.load(path) for path in self.model_paths if os.path.exists(path)]
+
+        if not self.models:
+            raise ValueError("No questionnaire models found (autism_model1.pkl / autism_model2.pkl)")
+
+    def _encode_inputs(self, data: Dict) -> pd.DataFrame:
+        responses = data.get("responses", [])
         
-        # Initialize Groq client for AI-powered interpretations
-        api_key = os.getenv('GROQ_API_KEY')
-        self.groq_client = Groq(api_key=api_key) if api_key else None
-        self.groq_model = "llama-3.3-70b-versatile"
+        # M-CHAT-R encoding with reverse-coded questions
+        # Questions 2, 5, 12 are reverse-coded (YES=concern, NO=typical)
+        # Standard questions: YES=typical (0), NO=concern (1)
+        reverse_coded = [2, 5, 12]  # 1-indexed question numbers
         
-        print("✓ Loaded questionnaire prediction models")
-    
-    def predict(self, questionnaire_data):
-        """
-        Predict autism likelihood from questionnaire responses.
-        
-        Args:
-            questionnaire_data: Dictionary with keys:
-                - responses: List of 20 yes/no answers (True/False)
-                - age: Child age in months
-                - sex: 'male' or 'female'
-                - jaundice: 'yes' or 'no'
-                - family_asd: 'yes' or 'no'
-        
-        Returns:
-            Dictionary with prediction results
-        """
-        try:
-            responses = questionnaire_data['responses']
+        encoded_responses = []
+        for i, answer in enumerate(responses):
+            question_num = i + 1  # Convert to 1-indexed
+            is_yes = bool(answer)
             
-            # Validate responses
-            if not responses or len(responses) != 20:
-                raise ValueError(f"Expected 20 questionnaire responses, got {len(responses) if responses else 0}. Please complete all questionnaire questions before submitting.")
-            
-            # Convert yes/no to 0/1 (0=typical, 1=autism trait)
-            # The responses come as True/False where True=yes(typical), False=no(autism trait)
-            Q1 = []  # First 10 questions
-            Q2 = []  # Second 10 questions (same meaning)
-            
-            for i, answer in enumerate(responses):
-                value = 0 if answer else 1  # yes=0 (typical), no=1 (autism)
-                if i < 10:
-                    Q1.append(value)
-                else:
-                    Q2.append(value)
-            
-            # Combine paired questions (average and threshold)
-            A = []
-            for q1, q2 in zip(Q1, Q2):
-                avg = (q1 + q2) / 2
-                A.append(1 if avg >= 0.5 else 0)
-            
-            # Get additional features
-            age = questionnaire_data['age']
-            sex = 1 if questionnaire_data['sex'].lower() == 'male' else 0
-            jaundice = 1 if questionnaire_data['jaundice'].lower() == 'yes' else 0
-            family_asd = 1 if questionnaire_data['family_asd'].lower() == 'yes' else 0
-            
-            # Build feature dataframe
-            columns = [
-                "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
-                "Age", "Sex", "Jauundice", "Family_ASD"
-            ]
-            
-            df = pd.DataFrame(
-                [A + [age, sex, jaundice, family_asd]],
-                columns=columns
-            )
-            
-            # Get predictions from both models
-            prob1 = self.model1.predict_proba(df)[0][1]
-            prob2 = self.model2.predict_proba(df)[0][1]
-            
-            # Average the predictions
-            final_prob = (prob1 + prob2) / 2
-            
-            # Determine risk level
-            if final_prob >= 0.70:
-                risk_level = "High"
-            elif final_prob >= 0.40:
-                risk_level = "Moderate"
+            if question_num in reverse_coded:
+                # Reverse-coded: YES=1 (concern), NO=0 (typical)
+                encoded_responses.append(1 if is_yes else 0)
             else:
-                risk_level = "Low"
-            
-            # Generate LLM-powered interpretation
-            interpretation = self._generate_llm_interpretation(
-                final_prob, risk_level, responses, age, 
-                questionnaire_data['sex'], jaundice, family_asd
-            )
-            
-            return {
-                'probability': float(final_prob),
-                'model1_probability': float(prob1),
-                'model2_probability': float(prob2),
-                'risk_level': risk_level,
-                'interpretation': interpretation,
-                'confidence': 0.85,  # Based on model training performance
-                'features': {
-                    'A1': int(A[0]), 'A2': int(A[1]), 'A3': int(A[2]), 'A4': int(A[3]), 'A5': int(A[4]),
-                    'A6': int(A[5]), 'A7': int(A[6]), 'A8': int(A[7]), 'A9': int(A[8]), 'A10': int(A[9]),
-                    'age': age,
-                    'sex': 'male' if sex == 1 else 'female',
-                    'jaundice': 'yes' if jaundice == 1 else 'no',
-                    'family_asd': 'yes' if family_asd == 1 else 'no'
-                }
-            }
-            
-        except Exception as e:
-            raise Exception(f"Questionnaire prediction failed: {str(e)}")
-    
-    def _generate_llm_interpretation(self, probability: float, risk_level: str,
-                                     responses: list, age: int, sex: str,
-                                     jaundice: int, family_asd: int) -> str:
-        """Generate AI-powered clinical interpretation using Groq LLM"""
+                # Standard: YES=0 (typical), NO=1 (concern)
+                encoded_responses.append(0 if is_yes else 1)
         
-        if not self.groq_client:
-            # Fallback to basic interpretation
-            return self._generate_basic_interpretation(probability, risk_level)
-        
-        try:
-            # Count concerning responses
-            concern_count = sum(1 for r in responses if not r)  # False = concerning
-            concern_percentage = (concern_count / len(responses)) * 100
-            
-            prompt = f"""As a developmental pediatrician, provide a professional interpretation of this autism screening questionnaire result:
+        responses = encoded_responses
 
-**Assessment Score: {probability*100:.1f}% likelihood (Risk Level: {risk_level})**
-
-**Child Information:**
-- Age: {age} months ({age//12} years)
-- Sex: {sex}
-- Jaundice at birth: {"Yes" if jaundice == 1 else "No"}
-- Family history of ASD: {"Yes" if family_asd == 1 else "No"}
-
-**Questionnaire Results:**
-- {concern_count} of 20 developmental markers flagged ({concern_percentage:.0f}%)
-- Model confidence: 85%
-
-Provide a concise, evidence-based interpretation (3-4 sentences) that:
-1. Explains what this score means in practical terms
-2. Highlights the most significant risk factors (if any)
-3. Provides specific, actionable next steps for parents
-4. Maintains a supportive, hopeful tone while being clinically accurate
-
-Focus on what parents should do next, not just descriptions."""
-
-            completion = self.groq_client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert developmental pediatrician specializing in autism screening. Provide clear, compassionate, actionable guidance for parents."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                model=self.groq_model,
-                temperature=0.4,
-                max_tokens=300
-            )
-            
-            return completion.choices[0].message.content
-            
-        except Exception as e:
-            print(f"Warning: LLM interpretation failed: {e}")
-            return self._generate_basic_interpretation(probability, risk_level)
-    
-    def _generate_basic_interpretation(self, probability: float, risk_level: str) -> str:
-        """Generate basic interpretation (fallback when LLM unavailable)"""
-        if probability >= 0.70:
-            return "HIGH POSSIBILITY OF AUTISM - Professional evaluation strongly recommended"
-        elif probability >= 0.40:
-            return "MODERATE RISK - Consider consultation with specialist"
+        if len(responses) >= 20:
+            q1 = responses[:10]
+            q2 = responses[10:20]
+            a_values = []
+            for a, b in zip(q1, q2):
+                avg = (a + b) / 2
+                a_values.append(1 if avg >= 0.5 else 0)
+        elif len(responses) >= 10:
+            a_values = responses[:10]
         else:
-            return "LOW AUTISM LIKELIHOOD - Continue monitoring development"
+            a_values = responses + [0] * (10 - len(responses))
 
-            print(f"Error in questionnaire prediction: {str(e)}")
-            raise Exception(f"Prediction error: {str(e)}")
+        age = float(data.get("age", 36))
+        sex = str(data.get("sex", "male")).lower()
+        jaundice = str(data.get("jaundice", "no")).lower()
+        family_asd = str(data.get("family_asd", "no")).lower()
+
+        sex_val = 1 if sex in ["m", "male"] else 0
+        jaundice_val = 1 if jaundice == "yes" else 0
+        family_val = 1 if family_asd == "yes" else 0
+
+        columns = [
+            "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+            "Age", "Sex", "Jauundice", "Family_ASD"
+        ]
+
+        return pd.DataFrame(
+            [a_values + [age, sex_val, jaundice_val, family_val]],
+            columns=columns
+        )
+
+    def _predict_proba(self, model, features: pd.DataFrame) -> float:
+        if hasattr(model, "predict_proba"):
+            return float(model.predict_proba(features)[0][1])
+        prediction = model.predict(features)[0]
+        return float(prediction)
+
+    def predict(self, data: Dict) -> Dict:
+        features = self._encode_inputs(data)
+        probabilities = [self._predict_proba(model, features) for model in self.models]
+        probability = float(np.mean(probabilities))
+        
+        # Convert to percentage (0-100)
+        percentage = probability * 100
+
+        # Risk level thresholds: < 40% = Low, 40-70% = Moderate, >= 70% = High
+        if percentage < 40:
+            risk_level = "Low"
+            interpretation = "Questionnaire suggests low autism risk"
+            recommendations = [
+                "Continue routine developmental monitoring",
+                "Share results with your pediatrician at the next visit"
+            ]
+        elif percentage < 70:
+            risk_level = "Moderate"
+            interpretation = "Questionnaire suggests moderate autism risk"
+            recommendations = [
+                "Discuss results with your pediatrician",
+                "Consider follow-up developmental screening"
+            ]
+        else:
+            risk_level = "High"
+            interpretation = "Questionnaire suggests elevated autism risk"
+            recommendations = [
+                "Schedule evaluation with a developmental specialist",
+                "Seek early intervention guidance"
+            ]
+
+        confidence = round(max(probability, 1 - probability) * 100, 1)
+
+        return {
+            "probability": round(percentage, 1),
+            "risk_level": risk_level,
+            "interpretation": interpretation,
+            "recommendations": recommendations,
+            "confidence": confidence
+        }

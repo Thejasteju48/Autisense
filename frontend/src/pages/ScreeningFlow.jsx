@@ -3,8 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { childrenAPI, screeningAPI } from '../services/api';
-import VideoInputSelector from '../components/VideoInputSelector';
-import VideoRecorder from '../components/VideoRecorder';
 import VideoUploader from '../components/VideoUploader';
 import { PlayIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
@@ -13,7 +11,7 @@ import { PlayIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24
  * 
  * Flow:
  * 1. Welcome screen with instructions
- * 2. Live video capture (5 minutes) with real-time frame analysis  
+ * 2. Recorded video upload with offline frame analysis
  * 3. Questionnaire for parent observations
  * 4. Processing and ML analysis
  * 5. Results display
@@ -26,10 +24,9 @@ const ScreeningFlow = () => {
   const [child, setChild] = useState(null);
   const [screeningId, setScreeningId] = useState(null);
   const [currentStep, setCurrentStep] = useState('welcome'); 
-  // Steps: welcome -> video-select -> video-record/video-upload -> questionnaire -> processing -> complete
+  // Steps: welcome -> video-upload -> questionnaire -> processing -> complete
   const [loading, setLoading] = useState(true);
   const [videoData, setVideoData] = useState(null);
-  const [videoInputMethod, setVideoInputMethod] = useState(null); // 'live-recording' or 'pre-recorded'
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -57,7 +54,7 @@ const ScreeningFlow = () => {
       setChild(childResponse.data.data.child);
 
       // Start screening session
-      const screeningResponse = await screeningAPI.start(childId, 'Live Video');
+      const screeningResponse = await screeningAPI.start(childId, 'Recorded Video');
       setScreeningId(screeningResponse.data.data.screening._id);
 
       setLoading(false);
@@ -69,21 +66,7 @@ const ScreeningFlow = () => {
   };
 
   const handleStartAssessment = () => {
-    setCurrentStep('video-select');
-  };
-  
-  const handleVideoInputSelect = (method) => {
-    setVideoInputMethod(method);
-    if (method === 'live-recording') {
-      setCurrentStep('video-record');
-    } else {
-      setCurrentStep('video-upload');
-    }
-  };
-  
-  const handleBackToSelect = () => {
-    setVideoInputMethod(null);
-    setCurrentStep('video-select');
+    setCurrentStep('video-upload');
   };
 
   const handleVideoComplete = async (data) => {
@@ -165,7 +148,7 @@ const ScreeningFlow = () => {
           >
             <div className="text-center">
               <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                Live Video Autism Screening
+                Recorded Video Autism Screening
               </h1>
               <p className="text-xl text-gray-600 mb-2">
                 Assessment for {child?.name}
@@ -183,8 +166,8 @@ const ScreeningFlow = () => {
                 <div className="flex items-start">
                   <span className="font-bold mr-3">1.</span>
                   <div>
-                    <span className="font-semibold">Live Video Recording (5 min)</span>
-                    <p className="text-sm">Natural behavior observation through webcam</p>
+                    <span className="font-semibold">Recorded Video Upload</span>
+                    <p className="text-sm">Upload a recorded session of natural behavior</p>
                   </div>
                 </div>
                 <div className="flex items-start">
@@ -229,46 +212,12 @@ const ScreeningFlow = () => {
         </div>
       )}
 
-      {/* Video Input Selection Screen */}
-      {currentStep === 'video-select' && (
-        <VideoInputSelector onSelect={handleVideoInputSelect} />
-      )}
-
-      {/* Live Video Recording Screen */}
-      {currentStep === 'video-record' && (
-        <div className="py-12 px-6">
-          <div className="mb-8 text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Live Video Recording
-            </h2>
-            <p className="text-gray-600">
-              Recording natural behavior for {child?.name}
-            </p>
-          </div>
-          
-          <VideoRecorder
-            screeningId={screeningId}
-            duration={240}
-            onComplete={handleVideoComplete}
-          />
-          
-          <div className="text-center mt-6">
-            <button
-              onClick={handleBackToSelect}
-              className="text-gray-600 hover:text-gray-900 underline"
-            >
-              ← Back to selection
-            </button>
-          </div>
-        </div>
-      )}
-      
       {/* Video Upload Screen */}
       {currentStep === 'video-upload' && (
         <VideoUploader
           screeningId={screeningId}
           onComplete={handleVideoComplete}
-          onBack={handleBackToSelect}
+          onBack={() => setCurrentStep('welcome')}
         />
       )}
 
@@ -348,29 +297,31 @@ const QuestionnaireForm = ({ onSubmit, child }) => {
   
   // 20 Questions matching the trained model
   const questions = [
-    // Questions 1-10 (Set A)
-    { id: 1, text: 'Does your child respond to their name?' },
-    { id: 2, text: 'Does your child turn toward you when you speak?' },
-    { id: 3, text: 'Does your child try to show you things they want?' },
-    { id: 4, text: 'Does your child share interest with you?' },
-    { id: 5, text: 'Does your child engage in pretend play?' },
-    { id: 6, text: 'Does your child look where you point?' },
-    { id: 7, text: 'Does your child show empathy?' },
-    { id: 8, text: 'Are your child\'s words clear?' },
-    { id: 9, text: 'Does your child use nodding or gestures?' },
-    { id: 10, text: 'Does your child stare blankly often?' },
+    // M-CHAT-R Questions (Modified Checklist for Autism in Toddlers - Revised)
+    // Standard coding: YES=typical (0), NO=concern (1)
+    // Reverse coding (Q2, Q5, Q12): YES=concern (1), NO=typical (0)
     
-    // Questions 11-20 (Set B - similar meaning)
-    { id: 11, text: 'Does your child respond when you call for attention?' },
-    { id: 12, text: 'Does your child react to sudden sounds?' },
-    { id: 13, text: 'Does your child bring items to you for help?' },
-    { id: 14, text: 'Does your child try to share things with you?' },
-    { id: 15, text: 'Does your child imitate pretend actions?' },
-    { id: 16, text: 'Does your child understand pointing gestures?' },
-    { id: 17, text: 'Does your child respond emotionally to others?' },
-    { id: 18, text: 'Does your child speak clearly to family members?' },
-    { id: 19, text: 'Does your child use gestures during communication?' },
-    { id: 20, text: 'Does your child seem withdrawn sometimes?' },
+    { id: 1, text: 'If you point at something across the room, does your child look at it? (FOR EXAMPLE, if you point at a toy or an animal, does your child look at the toy or animal?)', reverse: false },
+    { id: 2, text: 'Have you ever wondered if your child might be deaf?', reverse: true },
+    { id: 3, text: 'Does your child play pretend or make-believe? (FOR EXAMPLE, pretend to drink from an empty cup, pretend to talk on a phone, or pretend to feed a doll or stuffed animal?)', reverse: false },
+    { id: 4, text: 'Does your child like climbing on things? (FOR EXAMPLE, furniture, playground equipment, or stairs)', reverse: false },
+    { id: 5, text: 'Does your child make unusual finger movements near his or her eyes? (FOR EXAMPLE, does your child wiggle his or her fingers close to his or her eyes?)', reverse: true },
+    { id: 6, text: 'Does your child point with one finger to ask for something or to get help? (FOR EXAMPLE, pointing to a snack or toy that is out of reach)', reverse: false },
+    { id: 7, text: 'Does your child point with one finger to show you something interesting? (FOR EXAMPLE, pointing to an airplane in the sky or a big truck in the road)', reverse: false },
+    { id: 8, text: 'Is your child interested in other children? (FOR EXAMPLE, does your child watch other children, smile at them, or go to them?)', reverse: false },
+    { id: 9, text: 'Does your child show you things by bringing them to you or holding them up for you to see – not to get help, but just to share? (FOR EXAMPLE, showing you a flower, a stuffed animal, or a toy truck)', reverse: false },
+    { id: 10, text: 'Does your child respond when you call his or her name? (FOR EXAMPLE, does he or she look up, talk or babble, or stop what he or she is doing when you call his or her name?)', reverse: false },
+    
+    { id: 11, text: 'When you smile at your child, does he or she smile back at you?', reverse: false },
+    { id: 12, text: 'Does your child get upset by everyday noises? (FOR EXAMPLE, does your child scream or cry to noise such as a vacuum cleaner or loud music?)', reverse: true },
+    { id: 13, text: 'Does your child walk?', reverse: false },
+    { id: 14, text: 'Does your child look you in the eye when you are talking to him or her, playing with him or her, or dressing him or her?', reverse: false },
+    { id: 15, text: 'Does your child try to copy what you do? (FOR EXAMPLE, wave bye-bye, clap, make a funny noise when you do)', reverse: false },
+    { id: 16, text: 'If you turn your head to look at something, does your child look around to see what you are looking at?', reverse: false },
+    { id: 17, text: 'Does your child try to get you to watch him or her? (FOR EXAMPLE, does your child look at you for praise, or say "look" or "watch me"?)', reverse: false },
+    { id: 18, text: 'Does your child understand when you tell him or her to do something? (FOR EXAMPLE, if you don\'t point, can your child understand "put the book on the chair" or "bring me the blanket"?)', reverse: false },
+    { id: 19, text: 'If something new happens, does your child look at your face to see how you feel about it? (FOR EXAMPLE, if he or she hears a strange or funny noise, or sees a new toy, will he or she look at your face?)', reverse: false },
+    { id: 20, text: 'Does your child like movement activities? (FOR EXAMPLE, being swung or bounced on your knee)', reverse: false },
   ];
 
   const handleResponseChange = (questionId, answer) => {

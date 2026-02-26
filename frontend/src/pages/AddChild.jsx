@@ -19,7 +19,34 @@ const AddChild = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const calculateAgeInMonths = (dobValue) => {
+    if (!dobValue) return '';
+
+    const dob = new Date(dobValue);
+    if (Number.isNaN(dob.getTime())) return '';
+
+    const today = new Date();
+    let months = (today.getFullYear() - dob.getFullYear()) * 12;
+    months += today.getMonth() - dob.getMonth();
+
+    if (today.getDate() < dob.getDate()) {
+      months -= 1;
+    }
+
+    return Math.max(0, months);
+  };
+
   const handleChange = (e) => {
+    if (e.target.name === 'dateOfBirth') {
+      const calculatedMonths = calculateAgeInMonths(e.target.value);
+      setFormData({
+        ...formData,
+        dateOfBirth: e.target.value,
+        ageInMonths: calculatedMonths === '' ? '' : String(calculatedMonths),
+      });
+      return;
+    }
+
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -141,7 +168,13 @@ const AddChild = () => {
                 min="12"
                 max="72"
                 placeholder="e.g., 24"
-                helpText="Between 12 and 72 months (1-6 years)"
+                readOnly={Boolean(formData.dateOfBirth)}
+                className={formData.dateOfBirth ? 'bg-slate-100 text-slate-700 cursor-not-allowed' : ''}
+                helpText={
+                  formData.dateOfBirth
+                    ? 'Auto-calculated from Date of Birth'
+                    : 'Between 12 and 72 months (1-6 years)'
+                }
               />
 
               <Select
@@ -159,12 +192,13 @@ const AddChild = () => {
             </div>
 
             <Input
-              label="Date of Birth (Optional)"
+              label="Date of Birth"
               type="date"
               name="dateOfBirth"
               value={formData.dateOfBirth}
               onChange={handleChange}
               max={new Date().toISOString().split('T')[0]}
+              helpText="Selecting a date will auto-calculate age in months"
             />
 
             <Textarea

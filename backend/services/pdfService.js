@@ -25,97 +25,122 @@ exports.generateScreeningReport = async (screening, llmAnalysis) => {
 
       doc.pipe(writeStream);
 
+      const brand = {
+        primary: '#5b21b6',
+        primaryLight: '#ede9fe',
+        ink: '#111827',
+        muted: '#6b7280',
+        line: '#e5e7eb'
+      };
+
+      const formatDate = (value) => {
+        if (!value) return 'N/A';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleDateString();
+      };
+
+      const formatDuration = (seconds) => {
+        if (seconds === undefined || seconds === null) return 'N/A';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}m ${secs}s`;
+      };
+
+      const sectionTitle = (title) => {
+        doc.moveDown(0.8);
+        doc.font('Helvetica-Bold')
+           .fontSize(12)
+           .fillColor(brand.ink)
+           .text(title.toUpperCase(), { characterSpacing: 1 });
+        doc.moveDown(0.2);
+        doc.strokeColor(brand.line).lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.6);
+      };
+
+      const keyValue = (label, value) => {
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(brand.ink).text(`${label}: `, { continued: true });
+        doc.font('Helvetica').fillColor(brand.muted).text(value || 'N/A');
+      };
+
       // Header
-      doc.fontSize(24)
-         .fillColor('#6366f1')
-         .text('AutiSense Screening Report', { align: 'center' })
-         .moveDown(0.5);
+      doc.rect(0, 0, doc.page.width, 90).fill(brand.primary);
+      doc.fillColor('#ffffff')
+        .font('Helvetica-Bold')
+        .fontSize(20)
+        .text('Autisense', 50, 30);
+      doc.font('Helvetica')
+        .fontSize(11)
+        .text('Autism Screening Report', 50, 54);
+      doc.font('Helvetica')
+        .fontSize(9)
+        .text(`Report Generated: ${formatDate(new Date())}`, 400, 40, { align: 'right' });
 
-      doc.fontSize(12)
-         .fillColor('#666')
-         .text(`Report Generated: ${new Date().toLocaleDateString()}`, { align: 'center' })
-         .moveDown(1.5);
+      doc.moveDown(4.5);
+      doc.font('Helvetica').fontSize(10).fillColor(brand.ink);
 
-      // Parent Information Section
-      doc.fontSize(16)
-         .fillColor('#1f2937')
-         .text('Parent/Guardian Information', { underline: true })
-         .moveDown(0.5);
-
-      doc.fontSize(12)
-         .fillColor('#374151')
-         .text(`Name: ${screening.user?.name || 'N/A'}`)
-         .text(`Email: ${screening.user?.email || 'N/A'}`)
-         .moveDown(1.5);
-
-      // Child Information Section
-      doc.fontSize(16)
-         .fillColor('#1f2937')
-         .text('Child Information', { underline: true })
-         .moveDown(0.5);
-
+      // Patient summary block
       const childAge = Math.floor(screening.child.ageInMonths / 12);
       const childMonths = screening.child.ageInMonths % 12;
-      
-      doc.fontSize(12)
-         .fillColor('#374151')
-         .text(`Name: ${screening.child.name || screening.child.nickname}`)
-         .text(`Age: ${childAge} years ${childMonths} months (${screening.child.ageInMonths} months total)`)
-         .text(`Gender: ${screening.child.gender}`)
-         .text(`Date of Birth: ${new Date(screening.child.dateOfBirth).toLocaleDateString()}`)
-         .text(`Screening Date: ${new Date(screening.createdAt).toLocaleDateString()}`)
-         .moveDown(1.5);
 
-      // Assessment Results Section
-      doc.fontSize(16)
-         .fillColor('#1f2937')
-         .text('Assessment Results', { underline: true })
-         .moveDown(0.5);
+      sectionTitle('Patient & Guardian');
+      const startY = doc.y;
+      const colX = 50;
+      const colWidth = 245;
+      const colX2 = 305;
 
-      // Risk Level Box
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(brand.ink).text('Guardian', colX, startY);
+      doc.font('Helvetica').fontSize(10).fillColor(brand.muted);
+      doc.text(`Name: ${screening.user?.name || 'N/A'}`, colX, startY + 18);
+      doc.text(`Email: ${screening.user?.email || 'N/A'}`, colX, startY + 34);
+
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(brand.ink).text('Child', colX2, startY);
+      doc.font('Helvetica').fontSize(10).fillColor(brand.muted);
+      doc.text(`Name: ${screening.child.name || screening.child.nickname || 'N/A'}`, colX2, startY + 18);
+      doc.text(`Age: ${childAge} years ${childMonths} months`, colX2, startY + 34);
+      doc.text(`Gender: ${screening.child.gender || 'N/A'}`, colX2, startY + 50);
+      doc.text(`DOB: ${formatDate(screening.child.dateOfBirth)}`, colX2, startY + 66);
+      doc.text(`Screening Date: ${formatDate(screening.createdAt)}`, colX2, startY + 82);
+      doc.moveDown(4.5);
+
+      // Assessment Results
+      sectionTitle('Assessment Summary');
       const riskColor = screening.riskLevel === 'Low' ? '#10b981' : 
-                        screening.riskLevel === 'Moderate' ? '#f59e0b' : '#ef4444';
-      
-      doc.roundedRect(50, doc.y, 500, 80, 10)
-         .fillAndStroke(riskColor, riskColor);
+                  screening.riskLevel === 'Moderate' ? '#f59e0b' : '#ef4444';
 
-      doc.fontSize(14)
-         .fillColor('#ffffff')
-         .text('Risk Assessment', 60, doc.y - 70, { align: 'left' })
-         .fontSize(32)
-         .text(`${screening.finalScore.toFixed(1)}%`, 60, doc.y + 10)
-         .fontSize(16)
-         .text(`${screening.riskLevel} Risk Level`, 60, doc.y + 5);
+      doc.roundedRect(50, doc.y, 500, 70, 8)
+        .fillAndStroke('#ffffff', brand.line);
+      doc.rect(50, doc.y, 500, 70).stroke(brand.line);
 
-      doc.moveDown(2);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(brand.ink).text('Overall Risk', 70, doc.y + 12);
+      doc.font('Helvetica-Bold').fontSize(24).fillColor(riskColor).text(`${screening.riskLevel} Risk`, 70, doc.y + 28);
+      doc.font('Helvetica').fontSize(10).fillColor(brand.muted).text(`Score: ${screening.finalScore.toFixed(1)}%`, 70, doc.y + 55);
+
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(brand.ink).text('Report ID', 380, doc.y - 47);
+      doc.font('Helvetica').fontSize(9).fillColor(brand.muted).text(`${screening._id}`, 380, doc.y - 35, { width: 150 });
+      doc.moveDown(4.5);
 
       // Questionnaire Summary
-      doc.fontSize(14)
-         .fillColor('#1f2937')
-         .text('Questionnaire Summary', { underline: true })
-         .moveDown(0.3);
+      sectionTitle('Questionnaire Summary');
 
       const yesCount = screening.questionnaire.responses.filter(r => r.answer === true).length;
       const noCount = screening.questionnaire.responses.filter(r => r.answer === false).length;
 
-      doc.fontSize(11)
-         .fillColor('#374151')
-         .text(`Total Questions: ${screening.questionnaire.responses.length}`)
-         .text(`Positive Responses (Yes): ${yesCount}`)
-         .text(`Concerning Responses (No): ${noCount}`)
-         .text(`Questionnaire Score: ${(screening.questionnaire.score * 100).toFixed(1)}%`)
-         .text(`Jaundice at Birth: ${screening.questionnaire.jaundice}`)
-         .text(`Family History of ASD: ${screening.questionnaire.family_asd}`)
-         .moveDown(1);
+      doc.font('Helvetica').fontSize(10).fillColor(brand.muted);
+      keyValue('Total Questions', screening.questionnaire.responses.length);
+      keyValue('Positive Responses (Yes)', yesCount);
+      keyValue('Concerning Responses (No)', noCount);
+      keyValue('Questionnaire Score', `${(screening.questionnaire.score * 100).toFixed(1)}%`);
+      keyValue('Jaundice at Birth', screening.questionnaire.jaundice);
+      keyValue('Family History of ASD', screening.questionnaire.family_asd);
+      doc.moveDown(0.6);
 
       // Sample Key Responses
-      doc.fontSize(12)
-         .fillColor('#1f2937')
-         .text('Key Questionnaire Responses (Sample):', { underline: false })
-         .moveDown(0.3);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(brand.ink)
+        .text('Key Questionnaire Responses (Sample)');
+      doc.moveDown(0.2);
 
-      doc.fontSize(10)
-         .fillColor('#374151');
+      doc.font('Helvetica').fontSize(9).fillColor(brand.muted);
       
       screening.questionnaire.responses.slice(0, 10).forEach((response, index) => {
         const responseText = `${index + 1}. ${response.question}: ${response.answer ? '✓ Yes' : '✗ No'}`;
@@ -126,78 +151,42 @@ exports.generateScreeningReport = async (screening, llmAnalysis) => {
 
       // Video Analysis (if available)
       if (screening.liveVideoFeatures) {
-        doc.fontSize(14)
-           .fillColor('#1f2937')
-           .text('Behavioral Observations (Video Analysis)', { underline: true })
-           .moveDown(0.3);
+        sectionTitle('Recorded Video Analysis');
 
         const features = screening.liveVideoFeatures;
-        doc.fontSize(11)
-           .fillColor('#374151')
-           .text(`Session Duration: ${features.sessionDuration ? Math.floor(features.sessionDuration / 60) + ' minutes ' + (features.sessionDuration % 60) + ' seconds' : 'N/A'}`)
-           .text(`Total Frames Analyzed: ${features.totalFrames || 'N/A'}`)
-           .moveDown(0.5);
+        doc.font('Helvetica').fontSize(10).fillColor(brand.muted);
+        keyValue('Session Duration', formatDuration(features.sessionDuration));
+        keyValue('Total Frames Analyzed', features.totalFrames || 'N/A');
+        doc.moveDown(0.5);
 
-        doc.fontSize(12)
-           .fillColor('#1f2937')
-           .text('Social & Communication Behaviors:', { underline: false })
-           .moveDown(0.3);
-        
-        doc.fontSize(10)
-           .fillColor('#374151')
-           .text(`• Eye Contact: ${features.eyeContactRatio ? (features.eyeContactRatio * 100).toFixed(1) + '% - ' + (features.eyeContactLevel || 'N/A') : 'N/A'}`)
-           .fillColor('#6b7280')
-           .text(`  ${features.eyeContactInterpretation || ''}`, { indent: 15, lineGap: 2 })
-           .fillColor('#374151')
-           .moveDown(0.3)
-           .text(`• Blink Rate: ${features.blinkRatePerMinute ? features.blinkRatePerMinute.toFixed(1) + ' blinks/min - ' + (features.blinkLevel || 'N/A') : 'N/A'}`)
-           .fillColor('#6b7280')
-           .text(`  ${features.blinkInterpretation || ''}`, { indent: 15, lineGap: 2 })
-           .fillColor('#374151')
-           .moveDown(0.3)
-           .text(`• Social Gestures: ${features.socialGestures?.present ? 'Present (' + features.socialGestures.frequency_per_minute.toFixed(1) + '/min)' : 'Absent'}`)
-           .fillColor('#6b7280')
-           .text(`  ${features.socialGestures?.description || 'No social gestures detected'}`, { indent: 15, lineGap: 2 })
-           .fillColor('#374151')
-           .moveDown(0.3)
-           .text(`• Facial Expression: ${features.facialExpressionVariability ? (features.facialExpressionVariability * 100).toFixed(1) + '% - ' + (features.expressionLevel || 'N/A') : 'N/A'}`)
-           .fillColor('#6b7280')
-           .text(`  ${features.expressionInterpretation || ''}`, { indent: 15, lineGap: 2 })
-           .fillColor('#374151')
-           .moveDown(0.5);
+        doc.font('Helvetica-Bold').fontSize(11).fillColor(brand.ink)
+          .text('Observed Signals');
+        doc.moveDown(0.2);
 
-        doc.fontSize(12)
-           .fillColor('#1f2937')
-           .text('Motor Patterns & Repetitive Behaviors:', { underline: false })
-           .moveDown(0.3);
-        
-        doc.fontSize(10)
-           .fillColor('#374151')
-           .text(`• Head Movement: ${features.headMovementRate ? features.headMovementRate.toFixed(4) + ' - ' + (features.headMovementLevel || 'N/A') : 'N/A'}`)
-           .fillColor('#6b7280')
-           .text(`  ${features.headMovementInterpretation || ''}`, { indent: 15, lineGap: 2 })
-           .fillColor('#374151')
-           .moveDown(0.3)
-           .text(`• Head Stimming: ${features.headMovements?.repetitive ? 'Present' : 'Absent'}`)
-           .fillColor('#6b7280')
-           .text(`  ${features.headMovements?.description || 'No repetitive head movements'}`, { indent: 15, lineGap: 2 })
-           .fillColor('#374151')
-           .moveDown(0.3)
-           .text(`• Hand Stimming: ${features.handStimming?.present ? 'Present (' + (features.handStimming.severity || 'N/A') + ')' : 'Absent'}`)
-           .fillColor('#6b7280')
-           .text(`  ${features.handStimming?.description || 'No repetitive hand movements'}`, { indent: 15, lineGap: 2 })
-           .fillColor('#374151')
-           .moveDown(1.5);
+        doc.font('Helvetica').fontSize(10).fillColor(brand.muted);
+        doc.text(`• Eye Contact: ${features.eyeContact || 'N/A'}`);
+        doc.moveDown(0.2);
+        doc.text(`• Hand Gesture: ${features.handGesture || 'N/A'}`);
+        doc.moveDown(0.2);
+        doc.text(`• Social Reciprocity: ${features.socialReciprocity || 'N/A'}`);
+        doc.moveDown(0.2);
+        doc.text(`• Emotion Variation: ${features.emotionVariation || 'N/A'}`);
+        doc.moveDown(0.2);
+        doc.text(`• Head Stimming: ${features.headStimming || 'N/A'}`);
+        doc.moveDown(0.2);
+        doc.text(`• Hand Stimming: ${features.handStimming || 'N/A'}`);
+        doc.moveDown(1.2);
       }
 
       // Add a new page for detailed analysis
       doc.addPage();
       
       // Detailed Analysis of Findings
-      doc.fontSize(16)
-         .fillColor('#1f2937')
-         .text('Detailed Analysis & Classification Basis', { underline: true })
-         .moveDown(0.5);
+      doc.font('Helvetica-Bold')
+        .fontSize(14)
+        .fillColor(brand.ink)
+        .text('Detailed Analysis & Classification Basis')
+        .moveDown(0.5);
 
       doc.fontSize(11)
          .fillColor('#374151')
@@ -210,38 +199,41 @@ exports.generateScreeningReport = async (screening, llmAnalysis) => {
 
       if (screening.liveVideoFeatures) {
         const features = screening.liveVideoFeatures;
-        
-        // Eye contact
-        if (features.eyeContactRatio < 0.4) {
-          concerns.push('Limited eye contact (below 40%) - a key social communication marker');
-        } else if (features.eyeContactRatio > 0.6) {
-          positives.push('Good eye contact maintenance (above 60%)');
+
+        if (features.eyeContact === 'Low Eye Contact') {
+          concerns.push('Limited eye contact - a key social communication marker');
+        } else if (features.eyeContact === 'Normal Eye Contact') {
+          positives.push('Consistent eye contact during interaction');
         }
-        
-        // Hand stimming
-        if (features.handStimming?.present && features.handStimming.severity !== 'NORMAL') {
-          concerns.push(`Hand stimming behaviors detected (${features.handStimming.severity} severity) - repetitive self-stimulatory movements`);
-        } else {
-          positives.push('No significant repetitive hand movements observed');
+
+        if (features.handStimming === 'Present') {
+          concerns.push('Repetitive hand stimming behaviors observed');
+        } else if (features.handStimming === 'Absent') {
+          positives.push('No significant hand stimming observed');
         }
-        
-        // Head movements
-        if (features.headMovements?.repetitive) {
-          concerns.push('Repetitive head movements observed - may indicate self-regulatory behaviors');
+
+        if (features.headStimming === 'Present') {
+          concerns.push('Repetitive head stimming behaviors observed');
+        } else if (features.headStimming === 'Absent') {
+          positives.push('No significant head stimming observed');
         }
-        
-        // Social gestures
-        if (!features.socialGestures?.present || features.socialGestures.frequency_per_minute < 1) {
-          concerns.push('Limited social gestures - pointing, waving, or communicative gestures are minimal');
-        } else {
-          positives.push(`Active use of social gestures (${features.socialGestures.frequency_per_minute.toFixed(1)}/min)`);
+
+        if (features.handGesture === 'Absent') {
+          concerns.push('Limited communicative hand gestures observed');
+        } else if (features.handGesture === 'Present') {
+          positives.push('Uses communicative hand gestures');
         }
-        
-        // Facial expressions
-        if (features.facialExpressionVariability < 0.2) {
-          concerns.push('Reduced facial expression variability - limited emotional expression range');
-        } else if (features.facialExpressionVariability > 0.4) {
-          positives.push('Good range of facial expressions');
+
+        if (features.socialReciprocity === 'Low') {
+          concerns.push('Reduced social reciprocity during interaction');
+        } else if (features.socialReciprocity === 'Normal') {
+          positives.push('Age-appropriate social reciprocity observed');
+        }
+
+        if (features.emotionVariation === 'Low') {
+          concerns.push('Reduced emotion variation across expressions');
+        } else if (features.emotionVariation === 'Normal') {
+          positives.push('Healthy variation in emotional expressions');
         }
       }
 
@@ -282,14 +274,16 @@ exports.generateScreeningReport = async (screening, llmAnalysis) => {
       // AI-Generated Clinical Analysis (ALL content from LLM)
       doc.addPage();
       
-      doc.fontSize(16)
-         .fillColor('#1f2937')
-         .text('AI-Enhanced Clinical Analysis', { underline: true })
-         .moveDown(0.5);
+      doc.font('Helvetica-Bold')
+        .fontSize(14)
+        .fillColor(brand.ink)
+        .text('AI Clinical Summary')
+        .moveDown(0.5);
 
-      doc.fontSize(10)
-         .fillColor('#6366f1')
-         .text('Powered by Advanced AI - Personalized insights based on your child\'s specific behavioral patterns', { 
+      doc.font('Helvetica')
+        .fontSize(9)
+        .fillColor(brand.primary)
+        .text('AI-generated summary based on the submitted recorded video and questionnaire', { 
            align: 'center',
            italic: true
          })
@@ -297,15 +291,17 @@ exports.generateScreeningReport = async (screening, llmAnalysis) => {
 
       if (llmAnalysis) {
         // Display ONLY LLM-generated content (no static recommendations)
-        doc.fontSize(11)
+        doc.font('Helvetica')
+           .fontSize(10)
            .fillColor('#374151')
            .text(llmAnalysis, {
              align: 'justify',
-             lineGap: 5
+             lineGap: 4
            });
       } else {
         // Fallback if LLM fails
-        doc.fontSize(11)
+        doc.font('Helvetica')
+           .fontSize(10)
            .fillColor('#dc2626')
            .text('AI Analysis unavailable. Please consult with a healthcare professional for detailed interpretation.', {
              align: 'justify'
@@ -318,19 +314,22 @@ exports.generateScreeningReport = async (screening, llmAnalysis) => {
       doc.moveDown(1.5);
 
       // Disclaimer
-      doc.fontSize(10)
-         .fillColor('#666')
-         .text('IMPORTANT DISCLAIMER:', { underline: true })
-         .fontSize(9)
-         .text('This screening tool is designed for early detection purposes only and is NOT a diagnostic instrument. The results should be interpreted by qualified healthcare professionals. A comprehensive clinical evaluation by a pediatrician, psychologist, or developmental specialist is necessary for an accurate diagnosis of Autism Spectrum Disorder (ASD). Early intervention has been shown to significantly improve outcomes for children with ASD.', {
+      doc.font('Helvetica-Bold')
+        .fontSize(9)
+        .fillColor('#6b7280')
+        .text('IMPORTANT DISCLAIMER:')
+        .font('Helvetica')
+        .fontSize(8)
+        .text('This screening tool is designed for early detection purposes only and is NOT a diagnostic instrument. The results should be interpreted by qualified healthcare professionals. A comprehensive clinical evaluation by a pediatrician, psychologist, or developmental specialist is necessary for an accurate diagnosis of Autism Spectrum Disorder (ASD). Early intervention has been shown to significantly improve outcomes for children with ASD.', {
            align: 'justify',
            lineGap: 3
          });
 
       // Footer
-      doc.fontSize(8)
-         .fillColor('#999')
-         .text(`Report ID: ${screening._id}`, 50, doc.page.height - 30, { align: 'center' });
+      doc.font('Helvetica')
+        .fontSize(8)
+        .fillColor('#9ca3af')
+        .text(`Report ID: ${screening._id}`, 50, doc.page.height - 30, { align: 'center' });
 
       doc.end();
 

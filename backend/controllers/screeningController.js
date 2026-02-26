@@ -1,8 +1,11 @@
 const Screening = require('../models/Screening');
 const Child = require('../models/Child');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+const EMOTION_SERVICE_URL = process.env.EMOTION_SERVICE_URL || 'http://localhost:8001';
 
 // @desc    Start a new screening session
 // @route   POST /api/screenings/start
@@ -108,78 +111,25 @@ exports.submitQuestionnaire = async (req, res) => {
 
     // Save live video features if provided
     if (videoData && Object.keys(videoData).length > 0) {
-      // Map ML service features to database schema (all 7 features)
+      const existingVideo = screening.liveVideoFeatures || {};
       screening.liveVideoFeatures = {
-        // Feature 1: Eye Contact
-        eyeContactRatio: videoData.eye_contact_ratio || 0,
-        eyeContactLevel: videoData.eye_contact_level || 'unknown',
-        eyeContactInterpretation: videoData.eye_contact_interpretation || '',
-        
-        // Feature 2: Blink Rate
-        blinkRatePerMinute: videoData.blink_rate_per_minute || 0,
-        blinkLevel: videoData.blink_level || 'unknown',
-        blinkInterpretation: videoData.blink_interpretation || '',
-        
-        // Feature 3: Head Movement Rate
-        headMovementRate: videoData.head_movement_avg_per_frame || 0,
-        headMovementLevel: videoData.head_movement_level || 'unknown',
-        headMovementInterpretation: videoData.head_movement_interpretation || '',
-        
-        // Feature 4: Head Repetitive Movements
-        headMovements: videoData.head_movements || {
-          present: false,
-          repetitive: false,
-          description: 'No data'
-        },
-        
-        // Feature 5: Hand Repetitive Movements (Stimming)
-        handStimming: videoData.hand_stimming || {
-          present: false,
-          severity: 'NORMAL',
-          description: 'No repetitive hand movements detected'
-        },
-        
-        // Feature 6: Social Gestures
-        socialGestures: videoData.social_gestures || {
-          present: false,
-          frequency_per_minute: 0,
-          description: 'No social gestures detected'
-        },
-        
-        // Feature 7: Facial Expression Variability
-        facialExpressionVariability: videoData.facial_expression_variability || 0,
-        expressionLevel: videoData.expression_level || 'unknown',
-        expressionInterpretation: videoData.expression_interpretation || '',
-        
-        // Session metadata (match ML service output keys)
-        sessionDuration: videoData.sessionDuration || videoData.session_duration_seconds || 0,
-        totalFrames: videoData.totalFrames || videoData.total_frames_processed || 0,
-        
-        // Clinical interpretation from ML service
-        interpretation: videoData.clinical_interpretation || {
-          concerns: [],
-          riskScore: 0,
-          risk_level: 'Low',
-          summary: '',
-          total_concerns: 0
-        },
-        
-        // Data quality metrics
-        dataQuality: videoData.data_quality || {
-          face_detection_ratio: 0,
-          blink_data_quality: {},
-          expression_detection_rate: 0
-        }
+        eyeContact: videoData.eye_contact || existingVideo.eyeContact || 'Unknown',
+        headStimming: videoData.head_stimming || existingVideo.headStimming || 'Absent',
+        handStimming: videoData.hand_stimming || existingVideo.handStimming || 'Absent',
+        handGesture: videoData.hand_gesture || existingVideo.handGesture || 'Absent',
+        socialReciprocity: videoData.social_reciprocity || existingVideo.socialReciprocity || 'Unknown',
+        emotionVariation: videoData.emotion_variation || existingVideo.emotionVariation || 'Unknown',
+        sessionDuration: existingVideo.sessionDuration || videoData.session_duration_seconds || videoData.sessionDuration || 0,
+        totalFrames: existingVideo.totalFrames || videoData.total_frames_processed || videoData.totalFrames || 0
       };
-      
-      console.log('✓ Saved all 7 behavioral features:', {
-        '1_EyeContact': screening.liveVideoFeatures.eyeContactRatio,
-        '2_BlinkRate': screening.liveVideoFeatures.blinkRatePerMinute,
-        '3_HeadMovement': screening.liveVideoFeatures.headMovementRate,
-        '4_HeadRepetitive': screening.liveVideoFeatures.headMovements?.repetitive,
-        '5_HandStimming': screening.liveVideoFeatures.handStimming?.present,
-        '6_Gestures': screening.liveVideoFeatures.socialGestures?.frequency_per_minute,
-        '7_Expressions': screening.liveVideoFeatures.facialExpressionVariability
+
+      console.log('✓ Saved 6 behavioral features:', {
+        eyeContact: screening.liveVideoFeatures.eyeContact,
+        headStimming: screening.liveVideoFeatures.headStimming,
+        handStimming: screening.liveVideoFeatures.handStimming,
+        handGesture: screening.liveVideoFeatures.handGesture,
+        socialReciprocity: screening.liveVideoFeatures.socialReciprocity,
+        emotionVariation: screening.liveVideoFeatures.emotionVariation
       });
     }
 
@@ -258,53 +208,45 @@ exports.completeScreening = async (req, res) => {
       risk: questionnairePrediction.risk_level
     });
 
-    // Get video behavior prediction if video features exist
-    let videoPrediction = null;
-    if (screening.liveVideoFeatures && screening.liveVideoFeatures.eyeContactRatio !== undefined) {
-      try {
-        const videoFeatureData = {
-          eye_contact_ratio: screening.liveVideoFeatures.eyeContactRatio || 0.5,
-          blink_rate_per_minute: screening.liveVideoFeatures.blinkRatePerMinute || 15,
-          head_movement_rate: screening.liveVideoFeatures.headMovementRate || 0.2,
-          head_movements: screening.liveVideoFeatures.headMovements || {
-            present: false,
-            repetitive: false,
-            description: 'No data'
-          },
-          hand_stimming: screening.liveVideoFeatures.handStimming || {
-            present: false,
-            severity: 'NORMAL',
-            description: 'No repetitive hand movements detected'
-          },
-          social_gestures: screening.liveVideoFeatures.socialGestures || {
-            present: false,
-            frequency_per_minute: 0,
-            description: 'No social gestures detected'
-          },
-          facial_expression_variability: screening.liveVideoFeatures.facialExpressionVariability || 0.4
-        };
-        
-        console.log('Sending video features to ML service:', videoFeatureData);
-        
-        const videoResponse = await axios.post(`${ML_SERVICE_URL}/predict/video-behavior`, videoFeatureData);
-        videoPrediction = videoResponse.data;
-        
-        console.log('✓ Video behavior prediction:', {
-          score: videoPrediction.video_behavior_score,
-          risk: videoPrediction.risk_level
-        });
-      } catch (videoError) {
-        console.error('Warning: Video behavior prediction failed:', videoError.message);
-        // Continue with questionnaire-only prediction
+    // Derive video behavior score from the 6 feature labels (if available)
+    let videoScore = null;
+    let videoRiskLevel = null;
+    let videoSummary = null;
+
+    if (screening.liveVideoFeatures) {
+      const features = screening.liveVideoFeatures;
+      const riskFlags = [
+        features.eyeContact === 'Low Eye Contact',
+        features.headStimming === 'Present',
+        features.handStimming === 'Present',
+        features.handGesture === 'Absent',
+        features.socialReciprocity === 'Low',
+        features.emotionVariation === 'Low'
+      ];
+
+      const concernCount = riskFlags.filter(Boolean).length;
+      videoScore = (concernCount / riskFlags.length) * 100;
+
+      if (videoScore < 30) {
+        videoRiskLevel = 'Low';
+      } else if (videoScore < 60) {
+        videoRiskLevel = 'Moderate';
+      } else {
+        videoRiskLevel = 'High';
       }
+
+      videoSummary = `Video analysis indicates ${concernCount} of ${riskFlags.length} behavioral signals requiring attention.`;
+
+      console.log('✓ Video behavior score (derived):', { videoScore, videoRiskLevel, concernCount });
     }
 
     // Combine predictions (weighted average if both available)
     let finalScore, riskLevel, interpretation;
     
-    if (videoPrediction) {
-      // Combine: 60% questionnaire (more reliable), 40% video
-      finalScore = (questionnairePrediction.probability * 100 * 0.6) + (videoPrediction.video_behavior_score * 0.4);
+    if (videoScore !== null) {
+      // Combine: 60% questionnaire (more reliable), 40% video-derived score
+      // Note: questionnairePrediction.probability is already a percentage (0-100)
+      finalScore = (questionnairePrediction.probability * 0.6) + (videoScore * 0.4);
       
       // Determine combined risk level
       if (finalScore < 30) {
@@ -315,12 +257,12 @@ exports.completeScreening = async (req, res) => {
         riskLevel = 'High';
       }
       
-      interpretation = `Combined assessment: ${questionnairePrediction.interpretation} ${videoPrediction.interpretation}`;
+      interpretation = `Combined assessment: ${questionnairePrediction.interpretation} ${videoSummary || ''}`;
       
       console.log('✓ Combined prediction:', { finalScore, riskLevel });
     } else {
       // Use questionnaire-only prediction
-      finalScore = questionnairePrediction.probability * 100;
+      finalScore = questionnairePrediction.probability;
       riskLevel = questionnairePrediction.risk_level;
       interpretation = questionnairePrediction.interpretation;
       
@@ -330,37 +272,37 @@ exports.completeScreening = async (req, res) => {
     // Update screening with ML prediction results
     screening.finalScore = finalScore;
     screening.riskLevel = riskLevel;
-    // Update screening with ML prediction results
-    screening.finalScore = finalScore;
-    screening.riskLevel = riskLevel;
+    // Store the ML-predicted questionnaire score (not the simple yes/no ratio)
+    // Note: probability is already a percentage (0-100)
+    screening.mlQuestionnaireScore = questionnairePrediction.probability;
     screening.interpretation = {
       summary: interpretation,
       confidence: questionnairePrediction.confidence || 0.85,
       recommendations: questionnairePrediction.recommendations || [],
-      liveVideoSummary: screening.liveVideoFeatures?.interpretation?.summary || 'N/A',
-      videoBehaviorScore: videoPrediction ? videoPrediction.video_behavior_score : null,
-      componentScores: videoPrediction ? videoPrediction.component_scores : null
+      liveVideoSummary: videoSummary || 'N/A',
+      videoBehaviorScore: videoScore
     };
 
-    // Generate LLM-enhanced analysis using Groq
+    // Generate LLM-enhanced analysis using Groq (TEMPORARILY DISABLED)
     let llmAnalysis = null;
     try {
-      const groqService = require('../services/groqService');
-      const analysisResult = await groqService.generateScreeningAnalysis({
-        finalScore: screening.finalScore,
-        riskLevel: screening.riskLevel,
-        questionnaire: screening.questionnaire,
-        liveVideoFeatures: screening.liveVideoFeatures,
-        child: screening.child
-      });
+      // LLM analysis disabled for now - can be re-enabled later
+      // const groqService = require('../services/groqService');
+      // const analysisResult = await groqService.generateScreeningAnalysis({
+      //   finalScore: screening.finalScore,
+      //   riskLevel: screening.riskLevel,
+      //   questionnaire: screening.questionnaire,
+      //   liveVideoFeatures: screening.liveVideoFeatures,
+      //   child: screening.child
+      // });
 
-      if (analysisResult.success) {
-        llmAnalysis = analysisResult.analysis;
-        screening.interpretation.llmAnalysis = llmAnalysis;
-        console.log('✓ Generated LLM analysis using Groq API');
-      }
+      // if (analysisResult.success) {
+      //   llmAnalysis = analysisResult.analysis;
+      //   screening.interpretation.llmAnalysis = llmAnalysis;
+      //   console.log('✓ Generated LLM analysis using Groq API');
+      // }
     } catch (llmError) {
-      console.error('Warning: Failed to generate LLM analysis:', llmError.message);
+      console.log('Note: LLM analysis currently disabled');
       // Continue without LLM analysis - not critical
     }
 
@@ -376,6 +318,7 @@ exports.completeScreening = async (req, res) => {
         childName: screening.child.nickname || screening.child.name,
         finalScore: screening.finalScore,
         riskLevel: screening.riskLevel,
+        mlQuestionnaireScore: screening.mlQuestionnaireScore,
         interpretation: screening.interpretation,
         liveVideoFeatures: screening.liveVideoFeatures,
         completedAt: screening.completedAt,
@@ -402,11 +345,18 @@ exports.getScreening = async (req, res) => {
       user: req.user._id 
     })
     .populate('child', 'name nickname dateOfBirth profileImage ageInMonths gender')
-    .populate('user', 'name email');
+    .populate('user', 'name email')
+    .select('finalScore riskLevel mlQuestionnaireScore liveVideoFeatures questionnaire interpretation completedAt');
 
     if (!screening) {
       return res.status(404).json({ message: 'Screening not found' });
     }
+
+    console.log('Retrieved screening from DB:', {
+      finalScore: screening.finalScore,
+      riskLevel: screening.riskLevel,
+      mlQuestionnaireScore: screening.mlQuestionnaireScore
+    });
 
     // Match frontend expected format: { success: true, data: { screening: ... } }
     res.json({ success: true, data: { screening } });
@@ -430,7 +380,7 @@ exports.getScreeningsByChild = async (req, res) => {
       status: 'completed'
     })
     .sort({ createdAt: -1 })
-    .select('finalScore riskLevel createdAt completedAt interpretation liveVideoFeatures questionnaire status');
+    .select('finalScore riskLevel mlQuestionnaireScore createdAt completedAt interpretation liveVideoFeatures questionnaire status');
 
     if (isLatest) {
       const screening = await query.limit(1).exec();
@@ -462,7 +412,7 @@ exports.getAllUserScreenings = async (req, res) => {
     })
     .populate('child', 'name nickname profileImage dateOfBirth gender ageInMonths')
     .sort({ completedAt: -1, createdAt: -1 })
-    .select('child finalScore riskLevel createdAt completedAt interpretation liveVideoFeatures questionnaire status')
+    .select('child finalScore riskLevel mlQuestionnaireScore createdAt completedAt interpretation liveVideoFeatures questionnaire status')
     .lean();
 
     res.json({ success: true, data: { screenings } });
@@ -477,6 +427,14 @@ exports.getAllUserScreenings = async (req, res) => {
 // @access  Private
 exports.generateReport = async (req, res) => {
   try {
+    // PDF download temporarily disabled
+    return res.status(503).json({ 
+      message: 'PDF download service is temporarily unavailable. Please check back later.',
+      error: 'SERVICE_DISABLED' 
+    });
+    
+    // Original code commented out for future re-enablement:
+    /*
     const screening = await Screening.findOne({ 
       _id: req.params.id, 
       user: req.user._id 
@@ -509,6 +467,7 @@ exports.generateReport = async (req, res) => {
 
     // Send PDF file
     res.download(reportPath, `screening-report-${screening.child.name}-${new Date().toISOString().split('T')[0]}.pdf`);
+    */
   } catch (error) {
     console.error('Error generating report:', error);
     res.status(500).json({ message: 'Error generating report' });
@@ -562,112 +521,73 @@ exports.uploadVideo = async (req, res) => {
       return res.status(404).json({ message: 'Screening not found' });
     }
 
-    // Create form data to send to ML service
-    const FormData = require('form-data');
-    const formData = new FormData();
-    formData.append('video', videoFile.buffer, {
-      filename: videoFile.originalname,
-      contentType: videoFile.mimetype
-    });
-    formData.append('screening_id', id);
-    formData.append('duration', '180'); // Default 3 minutes, can be adjusted
+    const uploadsDir = path.join(__dirname, '../uploads/videos');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
-    console.log('📤 Forwarding video to ML service for analysis...');
+    const ext = path.extname(videoFile.originalname) || '.mp4';
+    const filename = `screening-${id}-${Date.now()}${ext}`;
+    const filePath = path.join(uploadsDir, filename);
 
-    // Send to ML service
-    const mlResponse = await axios.post(
-      `${ML_SERVICE_URL}/video/process-complete`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders()
-        },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-        timeout: 600000 // 10 minutes timeout
+    fs.writeFileSync(filePath, videoFile.buffer);
+
+    const actualDuration = req.body.duration || '180';
+
+    console.log('📤 Forwarding video path to ML service for analysis...');
+    console.log('   ML Service URL:', `${ML_SERVICE_URL}/analyze`);
+    console.log('   Video Path:', filePath);
+    console.log('   Duration:', actualDuration, 'seconds');
+    console.log('   Screening ID:', id);
+
+    let videoData = null;
+    try {
+      const mlResponse = await axios.post(
+        `${ML_SERVICE_URL}/analyze`,
+        { video_path: filePath },
+        { timeout: 600000 }
+      );
+
+      console.log('✅ ML processing complete:', mlResponse.data);
+      videoData = mlResponse.data;
+
+      try {
+        const emotionResponse = await axios.post(
+          `${EMOTION_SERVICE_URL}/analyze-emotion`,
+          { video_path: filePath },
+          { timeout: 600000 }
+        );
+        videoData.emotion_variation = emotionResponse.data?.emotion_variation || videoData.emotion_variation;
+      } catch (emotionError) {
+        console.error('⚠️ Emotion service failed:', emotionError.message);
       }
-    );
+    } finally {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
 
-    console.log('✅ ML processing complete:', {
-      frames_processed: mlResponse.data.frames_processed,
-      duration: mlResponse.data.duration
-    });
-
-    const videoData = mlResponse.data.features;
-
-    // Save features to database (all 7 behavioral features)
     screening.liveVideoFeatures = {
-      // Feature 1: Eye Contact
-      eyeContactRatio: videoData.eye_contact_ratio || 0,
-      eyeContactLevel: videoData.eye_contact_level || 'unknown',
-      eyeContactInterpretation: videoData.eye_contact_interpretation || '',
-      
-      // Feature 2: Blink Rate
-      blinkRatePerMinute: videoData.blink_rate_per_minute || 0,
-      blinkLevel: videoData.blink_level || 'unknown',
-      blinkInterpretation: videoData.blink_interpretation || '',
-      
-      // Feature 3: Head Movement Rate
-      headMovementRate: videoData.head_movement_avg_per_frame || 0,
-      headMovementLevel: videoData.head_movement_level || 'unknown',
-      headMovementInterpretation: videoData.head_movement_interpretation || '',
-      
-      // Feature 4: Head Repetitive Movements
-      headMovements: videoData.head_movements || {
-        present: false,
-        repetitive: false,
-        description: 'No data'
-      },
-      
-      // Feature 5: Hand Stimming
-      handStimming: videoData.hand_stimming || {
-        present: false,
-        severity: 'NORMAL',
-        description: 'No repetitive hand movements detected'
-      },
-      
-      // Feature 6: Social Gestures
-      socialGestures: videoData.social_gestures || {
-        present: false,
-        frequency_per_minute: 0,
-        description: 'No social gestures detected'
-      },
-      
-      // Feature 7: Facial Expression Variability
-      facialExpressionVariability: videoData.facial_expression_variability || 0,
-      expressionLevel: videoData.expression_level || 'unknown',
-      expressionInterpretation: videoData.expression_interpretation || '',
-      
-      // Session metadata
-      sessionDuration: videoData.sessionDuration || 0,
-      totalFrames: videoData.totalFrames || 0,
-      
-      // Clinical interpretation from ML service
-      interpretation: videoData.clinical_interpretation || {
-        concerns: [],
-        riskScore: 0,
-        risk_level: 'Low'
-      }
+      eyeContact: videoData.eye_contact || 'Unknown',
+      headStimming: videoData.head_stimming || 'Absent',
+      handStimming: videoData.hand_stimming || 'Absent',
+      handGesture: videoData.hand_gesture || 'Absent',
+      socialReciprocity: videoData.social_reciprocity || 'Unknown',
+      emotionVariation: videoData.emotion_variation || 'Unknown',
+      sessionDuration: Number(actualDuration) || 0,
+      totalFrames: 0
     };
 
     await screening.save();
 
-    console.log('💾 Saved video features to database:', {
-      eyeContact: screening.liveVideoFeatures.eyeContactRatio,
-      blinkRate: screening.liveVideoFeatures.blinkRatePerMinute,
-      headMovement: screening.liveVideoFeatures.headMovementRate,
-      handStimming: screening.liveVideoFeatures.handStimming.severity,
-      frames: screening.liveVideoFeatures.totalFrames
-    });
+    console.log('💾 Saved video features to database:', screening.liveVideoFeatures);
 
     // Return features to frontend
     res.json({
       success: true,
-      videoData: mlResponse.data.features,
-      features: mlResponse.data.features,
-      frames_processed: mlResponse.data.frames_processed,
-      duration: mlResponse.data.duration,
-      fps: mlResponse.data.fps
+      videoData: videoData,
+      features: videoData,
+      duration: Number(actualDuration) || 0
     });
 
   } catch (error) {

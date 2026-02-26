@@ -18,28 +18,15 @@ const ScreeningResults = () => {
     try {
       const response = await screeningAPI.getOne(screeningId);
       console.log('Fetched screening:', response.data);
+      console.log('mlQuestionnaireScore:', response.data.data.screening.mlQuestionnaireScore);
+      console.log('finalScore:', response.data.data.screening.finalScore);
+      console.log('riskLevel:', response.data.data.screening.riskLevel);
       setScreening(response.data.data.screening);
     } catch (error) {
       console.error('Failed to load results:', error);
       toast.error('Failed to load results');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const downloadReport = async () => {
-    try {
-      const response = await screeningAPI.downloadReport(screeningId);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `screening-report-${screeningId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success('Report downloaded!');
-    } catch (error) {
-      toast.error('Failed to download report');
     }
   };
 
@@ -68,206 +55,104 @@ const ScreeningResults = () => {
   }
 
   return (
-    <div className="page-transition max-w-4xl mx-auto">
+    <div className="page-transition max-w-5xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="card mb-6">
-          <h1 className="text-3xl font-bold mb-6">Screening Results</h1>
-          
-          <div className={`bg-gradient-to-r ${getRiskColor(screening.riskLevel)} rounded-2xl p-8 text-white mb-6`}>
-            <div className="text-center">
-              <h2 className="text-4xl font-bold mb-2">{screening.finalScore.toFixed(1)}%</h2>
-              <p className="text-xl">{screening.riskLevel} Risk Level</p>
-              <p className="text-sm mt-2 opacity-90">Completed on {new Date(screening.completedAt).toLocaleDateString()}</p>
+          {/* Header */}
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-6 pb-6 border-b">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Autisense Screening Report</p>
+              <h1 className="text-3xl font-bold text-gray-900 mt-2">Screening Results</h1>
+              <p className="text-sm text-gray-600 mt-2">Completed: {new Date(screening.completedAt).toLocaleDateString()}</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate('/dashboard')} className="btn-secondary">Back</button>
             </div>
           </div>
 
-          {screening.interpretation && (
-            <>
-              <div className="mb-6">
-                <h3 className="text-xl font-bold mb-3">Summary</h3>
-                <p className="text-gray-700">{screening.interpretation.summary}</p>
-              </div>
-
-              {screening.interpretation.llmAnalysis && (
-                <div className="mb-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
-                  <div className="flex items-center mb-4">
-                    <svg className="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    <h3 className="text-xl font-bold text-indigo-900">AI-Enhanced Clinical Analysis</h3>
-                  </div>
-                  <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-                    {screening.interpretation.llmAnalysis}
-                  </div>
-                </div>
-              )}
-
-              {screening.interpretation.componentScores && (
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold mb-3">Video Behavior Analysis</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <h4 className="font-semibold mb-2">👁️ Eye Contact</h4>
-                      <p className="text-sm text-gray-700">Score: {screening.interpretation.componentScores.eye_contact.toFixed(1)}/100</p>
-                    </div>
-                    <div className="p-4 bg-purple-50 rounded-lg">
-                      <h4 className="font-semibold mb-2">😊 Facial Expressions</h4>
-                      <p className="text-sm text-gray-700">Score: {screening.interpretation.componentScores.facial_expression.toFixed(1)}/100</p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <h4 className="font-semibold mb-2">👋 Gestures</h4>
-                      <p className="text-sm text-gray-700">Score: {screening.interpretation.componentScores.gesture_frequency.toFixed(1)}/100</p>
-                    </div>
-                    <div className="p-4 bg-yellow-50 rounded-lg">
-                      <h4 className="font-semibold mb-2">🔄 Repetitive Behaviors</h4>
-                      <p className="text-sm text-gray-700">
-                        Head: {screening.interpretation.componentScores.head_repetition.toFixed(1)}/100<br/>
-                        Hand: {screening.interpretation.componentScores.hand_repetition.toFixed(1)}/100
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid md:grid-cols-2 gap-4 mb-6">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-semibold mb-2">👀 Eye Contact</h4>
-                  <p className="text-sm text-gray-700">{screening.interpretation.eyeContactInsights}</p>
-                </div>
-                <div className="p-4 bg-pink-50 rounded-lg">
-                  <h4 className="font-semibold mb-2">😊 Smiles</h4>
-                  <p className="text-sm text-gray-700">{screening.interpretation.smileInsights}</p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <h4 className="font-semibold mb-2">👋 Gestures</h4>
-                  <p className="text-sm text-gray-700">{screening.interpretation.gestureInsights}</p>
-                </div>
-                <div className="p-4 bg-yellow-50 rounded-lg">
-                  <h4 className="font-semibold mb-2">🔄 Repetitive Behaviors</h4>
-                  <p className="text-sm text-gray-700">{screening.interpretation.repetitiveInsights}</p>
-                </div>
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <h4 className="font-semibold mb-2">👫 Imitation</h4>
-                  <p className="text-sm text-gray-700">{screening.interpretation.imitationInsights}</p>
+          {/* Final Score & Risk Level - Primary Display */}
+          <div className="rounded-2xl border border-purple-100 bg-white/90 p-8 mb-8 shadow-sm">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-gray-500 mb-2">Overall Risk Level</p>
+                <div className={`inline-flex items-center rounded-full bg-gradient-to-r ${getRiskColor(screening.riskLevel)} px-6 py-3 text-white font-bold text-lg`}> 
+                  {screening.riskLevel} Risk
                 </div>
               </div>
-
-              {screening.interpretation.questionnaireInsights && (
-                <div className="mb-6 p-4 bg-green-50 rounded-lg">
-                  <h4 className="font-semibold mb-2">📋 Questionnaire Insights</h4>
-                  <p className="text-sm text-gray-700">{screening.interpretation.questionnaireInsights}</p>
-                </div>
-              )}
-
-              <div className="mb-6">
-                <h3 className="text-xl font-bold mb-3">📊 Data Sources Used</h3>
-                <div className="space-y-3">
-                  <div className="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
-                    <h4 className="font-semibold text-purple-900 mb-2">🎥 Live Video Analysis (5 minutes)</h4>
-                    <p className="text-sm text-gray-700">7 behavioral features extracted using Computer Vision & Machine Learning: eye contact patterns, blink rate, facial expressions, gestures, head & hand movements</p>
-                  </div>
-                  <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                    <h4 className="font-semibold text-blue-900 mb-2">📋 Standardized Questionnaire (20 questions)</h4>
-                    <p className="text-sm text-gray-700">Based on validated ASD screening protocols (M-CHAT, CARS) covering social communication, behaviors, and developmental milestones</p>
-                  </div>
-                  <div className="p-4 bg-indigo-50 rounded-lg border-l-4 border-indigo-500">
-                    <h4 className="font-semibold text-indigo-900 mb-2">🤖 AI Clinical Analysis</h4>
-                    <p className="text-sm text-gray-700">Advanced LLM trained on clinical data provides comprehensive interpretation combining video + questionnaire results</p>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
-                    <h4 className="font-semibold text-green-900 mb-2">🎯 ML Risk Prediction Model</h4>
-                    <p className="text-sm text-gray-700">Classification model trained on validated ASD datasets combines all features for final risk score</p>
-                  </div>
-                </div>
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-[0.2em] text-gray-500 mb-2">Final Score</p>
+                <p className="text-5xl font-bold text-gray-900">{screening.finalScore.toFixed(1)}%</p>
               </div>
+            </div>
+          </div>
 
-              <div className="mb-6">
-                <h3 className="text-xl font-bold mb-3">Recommendations</h3>
-                <ul className="space-y-2">
-                  {screening.interpretation.recommendations.map((rec, i) => (
-                    <li key={i} className="flex items-start">
-                      <span className="text-primary-500 mr-2">✓</span>
-                      <span className="text-gray-700">{rec}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mb-6">
-                <h3 className="text-xl font-bold mb-3">🚀 Next Steps</h3>
-                <div className={`p-5 rounded-xl border-2 ${
-                  screening.riskLevel === 'High' ? 'bg-red-50 border-red-300' :
-                  screening.riskLevel === 'Moderate' ? 'bg-yellow-50 border-yellow-300' :
-                  'bg-green-50 border-green-300'
-                }`}>
-                  <h4 className={`font-bold text-lg mb-3 ${
-                    screening.riskLevel === 'High' ? 'text-red-900' :
-                    screening.riskLevel === 'Moderate' ? 'text-yellow-900' :
-                    'text-green-900'
-                  }`}>
-                    {screening.riskLevel === 'High' && 'IMMEDIATE ACTIONS RECOMMENDED'}
-                    {screening.riskLevel === 'Moderate' && 'RECOMMENDED ACTIONS'}
-                    {screening.riskLevel === 'Low' && 'SUGGESTED FOLLOW-UP'}
-                  </h4>
-                  <ol className="list-decimal list-inside space-y-2 text-gray-800">
-                    {screening.riskLevel === 'High' && (
-                      <>
-                        <li>Schedule appointment with pediatrician <strong>within 1-2 weeks</strong></li>
-                        <li>Request referral to developmental pediatrician or child psychologist</li>
-                        <li>Contact Early Intervention Services (0-3 years) or school district (3+ years)</li>
-                        <li>Document specific behaviors and developmental concerns</li>
-                        <li>Consider starting speech/occupational therapy evaluation</li>
-                      </>
-                    )}
-                    {screening.riskLevel === 'Moderate' && (
-                      <>
-                        <li>Schedule follow-up screening in 3-6 months</li>
-                        <li>Discuss results with pediatrician at next wellness visit</li>
-                        <li>Monitor developmental milestones closely</li>
-                        <li>Consider developmental screening by healthcare provider</li>
-                        <li>Engage in activities that support social-communication skills</li>
-                      </>
-                    )}
-                    {screening.riskLevel === 'Low' && (
-                      <>
-                        <li>Continue routine developmental monitoring</li>
-                        <li>Share results with pediatrician at next visit</li>
-                        <li>Re-screen if new concerns arise</li>
-                        <li>Maintain regular wellness check-ups</li>
-                        <li>Support continued social and communication development</li>
-                      </>
-                    )}
-                  </ol>
+          {/* Video Features (Movements Detected) */}
+          {screening.liveVideoFeatures && (
+            <div className="mb-8">
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500 mb-2">Video Analysis</p>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Movements & Behaviors Detected</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">👀 Eye Contact</p>
+                  <p className="text-base font-medium text-gray-800">{screening.liveVideoFeatures.eyeContact || 'N/A'}</p>
+                </div>
+                <div className="rounded-xl border border-yellow-100 bg-yellow-50/70 p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">🤕 Head Stimming</p>
+                  <p className="text-base font-medium text-gray-800">{screening.liveVideoFeatures.headStimming || 'N/A'}</p>
+                </div>
+                <div className="rounded-xl border border-orange-100 bg-orange-50/70 p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">✋ Hand Stimming</p>
+                  <p className="text-base font-medium text-gray-800">{screening.liveVideoFeatures.handStimming || 'N/A'}</p>
+                </div>
+                <div className="rounded-xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">🤲 Hand Gesture</p>
+                  <p className="text-base font-medium text-gray-800">{screening.liveVideoFeatures.handGesture || 'N/A'}</p>
+                </div>
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">🔄 Social Reciprocity</p>
+                  <p className="text-base font-medium text-gray-800">{screening.liveVideoFeatures.socialReciprocity || 'N/A'}</p>
+                </div>
+                <div className="rounded-xl border border-purple-100 bg-purple-50/70 p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">😊 Emotion Variation</p>
+                  <p className="text-base font-medium text-gray-800">{screening.liveVideoFeatures.emotionVariation || 'N/A'}</p>
                 </div>
               </div>
-
-              <div className="mb-6 p-5 bg-blue-50 rounded-xl border-2 border-blue-200">
-                <h3 className="text-xl font-bold mb-3 text-blue-900">📚 Helpful Resources</h3>
-                <ul className="space-y-2 text-gray-800">
-                  <li className="flex items-start">
-                    <span className="text-blue-500 mr-2">•</span>
-                    <span><strong>Autism Speaks:</strong> www.autismspeaks.org (1-888-288-4762)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-500 mr-2">•</span>
-                    <span><strong>CDC - Learn the Signs, Act Early:</strong> www.cdc.gov/ncbddd/actearly</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-500 mr-2">•</span>
-                    <span><strong>ASHA (Speech-Language):</strong> www.asha.org</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-500 mr-2">•</span>
-                    <span><strong>Autism Society:</strong> www.autism-society.org (1-800-328-8476)</span>
-                  </li>
-                </ul>
-              </div>
-            </>
+            </div>
           )}
 
-          <div className="flex space-x-4">
-            <button onClick={downloadReport} className="btn-primary">Download PDF Report</button>
-            <button onClick={() => navigate('/dashboard')} className="btn-secondary">Back to Dashboard</button>
+          {/* Questionnaire Score */}
+          {screening.questionnaire && (
+            <div className="mb-8">
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500 mb-2">Questionnaire Results</p>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Parent/Guardian Assessment</h3>
+              <div className="rounded-xl border border-green-200 bg-green-50/70 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Total Questions Answered</p>
+                    <p className="text-3xl font-bold text-gray-900">{screening.questionnaire.responses?.length || 0} of 20</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600 mb-1">Questionnaire Score</p>
+                    <p className="text-3xl font-bold text-green-700">{Math.round(screening.mlQuestionnaireScore || 0)}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Interpretation Summary */}
+          {screening.interpretation && (
+            <div className="mb-8 p-6 bg-blue-50/70 rounded-xl border border-blue-200">
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-600 mb-2">Summary</p>
+              <h3 className="text-lg font-bold text-blue-900 mb-3">Assessment Overview</h3>
+              <p className="text-gray-800 leading-relaxed">{screening.interpretation.summary}</p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-3 pt-6 border-t">
+            <button onClick={() => navigate('/dashboard')} className="btn-secondary">View History</button>
+            <button onClick={() => navigate('/new-screening')} className="btn-outline">Start New Screening</button>
           </div>
         </div>
       </motion.div>

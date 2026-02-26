@@ -12,7 +12,7 @@ import axios from 'axios';
  * Video Recorder Component - Batch Processing Architecture
  * 
  * WORKFLOW:
- * 1. Frontend records complete video (minimum 2 minutes)
+ * 1. Frontend records complete video
  * 2. After recording stops, upload video file to backend
  * 3. Backend sends video to ML service
  * 4. ML service extracts frames at ~10 FPS
@@ -37,6 +37,7 @@ const VideoRecorder = ({
   const recordedChunksRef = useRef([]);
   const timerIntervalRef = useRef(null);
   
+  const [selectedDuration, setSelectedDuration] = useState(duration);
   const [isRecording, setIsRecording] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [timeElapsed, setTimeElapsed] = useState(0);
@@ -45,9 +46,18 @@ const VideoRecorder = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [recordedBlob, setRecordedBlob] = useState(null);
   
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  const MIN_DURATION = 180; // 3 minutes minimum
-  const MAX_DURATION = 240; // 4 minutes maximum
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+  const MIN_DURATION = 60; // 1 minute recommended
+  const MAX_DURATION = 300; // 5 minutes recommended
+  
+  // Duration options in seconds
+  const DURATION_OPTIONS = [
+    { value: 60, label: '1 minute' },
+    { value: 120, label: '2 minutes' },
+    { value: 180, label: '3 minutes (Recommended)' },
+    { value: 240, label: '4 minutes' },
+    { value: 300, label: '5 minutes' }
+  ];
 
   // Start webcam
   const startWebcam = useCallback(async () => {
@@ -94,7 +104,7 @@ const VideoRecorder = ({
 
     recordedChunksRef.current = [];
     setTimeElapsed(0);
-    setTimeRemaining(duration);
+    setTimeRemaining(selectedDuration);
     setError(null);
 
     // Create MediaRecorder
@@ -129,8 +139,8 @@ const VideoRecorder = ({
       setTimeElapsed(prev => {
         const newTime = prev + 1;
         
-        // Auto-stop at max duration
-        if (newTime >= MAX_DURATION) {
+        // Auto-stop at selected duration
+        if (newTime >= selectedDuration) {
           console.log('⏱️ Maximum duration reached, auto-stopping recording');
           stopRecording();
         }
@@ -146,8 +156,8 @@ const VideoRecorder = ({
       });
     }, 1000);
 
-    console.log(`📹 Recording started - Duration: ${duration}s (Minimum: ${MIN_DURATION}s, Maximum: ${MAX_DURATION}s)`);
-  }, [duration, MIN_DURATION]);
+    console.log(`📹 Recording started - Duration: ${selectedDuration}s`);
+  }, [selectedDuration]);
 
   // Stop recording
   const stopRecording = useCallback(() => {
@@ -168,11 +178,6 @@ const VideoRecorder = ({
   const processVideo = useCallback(async () => {
     if (!recordedBlob) {
       setError('No video recorded');
-      return;
-    }
-
-    if (timeElapsed < MIN_DURATION) {
-      setError(`Video must be at least ${MIN_DURATION} seconds. Current: ${timeElapsed}s`);
       return;
     }
 
@@ -222,7 +227,7 @@ const VideoRecorder = ({
       setError(`Failed to process video: ${err.response?.data?.message || err.message}`);
       setIsProcessing(false);
     }
-  }, [recordedBlob, timeElapsed, screeningId, MIN_DURATION, BACKEND_URL, onComplete]);
+  }, [recordedBlob, timeElapsed, screeningId, BACKEND_URL, onComplete]);
 
   // Initialize webcam on mount
   useEffect(() => {
@@ -244,6 +249,38 @@ const VideoRecorder = ({
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Duration Selector - Show only before recording starts */}
+      {!isRecording && !recordedBlob && (
+        <div className="mb-6 bg-white rounded-xl shadow-lg p-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Select Recording Duration
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {DURATION_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => {
+                  setSelectedDuration(option.value);
+                  setTimeRemaining(option.value);
+                }}
+                className={`
+                  px-4 py-3 rounded-lg font-medium transition-all
+                  ${selectedDuration === option.value
+                    ? 'bg-purple-600 text-white shadow-lg scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }
+                `}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-sm text-gray-600">
+            💡 We recommend 1-3 minutes for accurate behavioral analysis
+          </p>
+        </div>
+      )}
+      
       {/* Video Preview */}
       <div className="relative bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
         <video
@@ -306,11 +343,10 @@ const VideoRecorder = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={stopRecording}
-            disabled={timeElapsed < MIN_DURATION}
             className="flex items-center space-x-3 bg-gradient-to-r from-red-500 to-red-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <StopIcon className="w-6 h-6" />
-            <span>Stop Recording {timeElapsed < MIN_DURATION && `(${MIN_DURATION - timeElapsed}s remaining)`}</span>
+            <span>Stop Recording</span>
           </motion.button>
         )}
 
@@ -342,9 +378,8 @@ const VideoRecorder = ({
           📹 Recording Instructions
         </h3>
         <ul className="space-y-2 text-blue-800">
-          <li>• <strong>Minimum Duration:</strong> {MIN_DURATION} seconds (3 minutes)</li>
-          <li>• <strong>Maximum Duration:</strong> {MAX_DURATION} seconds (4 minutes)</li>
-          <li>• <strong>Maximum Duration:</strong> {formatTime(duration)}</li>
+          <li>• <strong>Recommended Duration:</strong> 1-5 minutes</li>
+          <li>• <strong>Selected Duration:</strong> {formatTime(duration)}</li>
           <li>• Position child's face clearly in the frame</li>
           <li>• Ensure good lighting and stable camera</li>
           <li>• Video will be processed after recording completes</li>

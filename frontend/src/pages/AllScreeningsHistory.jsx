@@ -48,25 +48,6 @@ const AllScreeningsHistory = () => {
     }
   };
 
-  const downloadReport = async (screeningId, childName) => {
-    try {
-      const response = await screeningAPI.downloadReport(screeningId);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      const date = new Date().toISOString().split('T')[0];
-      link.setAttribute('download', `screening-report-${childName}-${date}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success('Report downloaded!');
-    } catch (error) {
-      console.error('Download error:', error);
-      toast.error('Failed to download report');
-    }
-  };
-
   const getRiskColor = (level) => {
     switch (level) {
       case 'Low': return 'text-green-600 bg-green-50 border-green-200';
@@ -376,13 +357,6 @@ const AllScreeningsHistory = () => {
                     >
                       <EyeIcon className="w-5 h-5" />
                       View Details
-                    </button>
-                    <button
-                      onClick={() => downloadReport(screening._id, child.name || 'child')}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
-                    >
-                      <DocumentArrowDownIcon className="w-5 h-5" />
-                      Download PDF
                     </button>
                   </div>
                 </div>

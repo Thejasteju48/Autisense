@@ -1,31 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  VideoCameraIcon, 
   CloudArrowUpIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 /**
  * Video Input Selector Component
- * Allows users to choose between live recording or uploading pre-recorded video
+ * Recorded-video-only upload flow
  */
 const VideoInputSelector = ({ onSelect }) => {
   const [selectedOption, setSelectedOption] = useState(null);
 
   const options = [
-    {
-      id: 'live-recording',
-      title: 'Live Recording',
-      description: 'Record a new video using your webcam',
-      icon: VideoCameraIcon,
-      color: 'blue',
-      requirements: [
-        'Webcam access required',
-        'Minimum 3 minutes duration',
-        'Good lighting recommended'
-      ]
-    },
     {
       id: 'pre-recorded',
       title: 'Upload Video',
@@ -34,8 +21,8 @@ const VideoInputSelector = ({ onSelect }) => {
       color: 'green',
       requirements: [
         'MP4, WebM, or AVI format',
-        'Minimum 2 minutes duration',
-        'Maximum 5 minutes recommended'
+        'Duration: 1-5 minutes',
+        'Maximum file size: 500MB'
       ]
     }
   ];
@@ -52,11 +39,11 @@ const VideoInputSelector = ({ onSelect }) => {
           Video Analysis Setup
         </h2>
         <p className="text-lg text-gray-600">
-          Choose how you would like to provide the video for behavioral analysis
+          Upload a recorded video for behavioral analysis
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-1 gap-6">
         {options.map((option) => {
           const Icon = option.icon;
           const isSelected = selectedOption === option.id;

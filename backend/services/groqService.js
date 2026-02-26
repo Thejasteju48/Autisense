@@ -32,22 +32,13 @@ exports.generateScreeningAnalysis = async (screeningData) => {
 
 **Behavioral Observations from Video Analysis:**
 ${liveVideoFeatures ? `
-- Eye Contact: ${liveVideoFeatures.eyeContactRatio ? (liveVideoFeatures.eyeContactRatio * 100).toFixed(1) + '% - ' + (liveVideoFeatures.eyeContactLevel || 'unknown') : 'Not measured'}
-  ${liveVideoFeatures.eyeContactInterpretation || ''}
-- Blink Rate: ${liveVideoFeatures.blinkRatePerMinute ? liveVideoFeatures.blinkRatePerMinute.toFixed(1) + ' blinks/min - ' + (liveVideoFeatures.blinkLevel || 'unknown') : 'Not measured'}
-  ${liveVideoFeatures.blinkInterpretation || ''}
-- Head Movement: ${liveVideoFeatures.headMovementRate ? liveVideoFeatures.headMovementRate.toFixed(4) + ' - ' + (liveVideoFeatures.headMovementLevel || 'unknown') : 'Not measured'}
-  ${liveVideoFeatures.headMovementInterpretation || ''}
-- Head Stimming: ${liveVideoFeatures.headMovements?.repetitive ? 'Present' : 'Absent'}
-  ${liveVideoFeatures.headMovements?.description || ''}
-- Hand Stimming: ${liveVideoFeatures.handStimming?.present ? 'Present (' + (liveVideoFeatures.handStimming.severity || 'unknown') + ')' : 'Absent'}
-  ${liveVideoFeatures.handStimming?.description || ''}
-- Social Gestures: ${liveVideoFeatures.socialGestures?.present ? 'Present (' + (liveVideoFeatures.socialGestures.frequency_per_minute || 0).toFixed(1) + '/min)' : 'Absent'}
-  ${liveVideoFeatures.socialGestures?.description || ''}
-- Facial Expression: ${liveVideoFeatures.facialExpressionVariability ? (liveVideoFeatures.facialExpressionVariability * 100).toFixed(1) + '% - ' + (liveVideoFeatures.expressionLevel || 'unknown') : 'Not measured'}
-  ${liveVideoFeatures.expressionInterpretation || ''}
+- Eye Contact: ${liveVideoFeatures.eyeContact || 'Unknown'}
+- Head Stimming: ${liveVideoFeatures.headStimming || 'Unknown'}
+- Hand Stimming: ${liveVideoFeatures.handStimming || 'Unknown'}
+- Hand Gesture: ${liveVideoFeatures.handGesture || 'Unknown'}
+- Social Reciprocity: ${liveVideoFeatures.socialReciprocity || 'Unknown'}
+- Emotion Variation: ${liveVideoFeatures.emotionVariation || 'Unknown'}
 - Session Duration: ${liveVideoFeatures.sessionDuration ? Math.floor(liveVideoFeatures.sessionDuration / 60) + ' min ' + (liveVideoFeatures.sessionDuration % 60) + ' sec' : 'N/A'}
-- Total Frames Analyzed: ${liveVideoFeatures.totalFrames || 'N/A'}
 ` : 'Video analysis data not available'}
 
 **Questionnaire Responses Summary:**
@@ -77,9 +68,10 @@ Please provide a detailed analysis in the following structure:
    - Clarify what this score means and doesn't mean
 
 4. **Detailed Behavioral Analysis**:
-   - Eye Contact & Social Communication: Interpret the ${liveVideoFeatures?.eyeContactRatio ? (liveVideoFeatures.eyeContactRatio * 100).toFixed(1) + '%' : 'N/A'} eye contact ratio and social gesture patterns
-   - Repetitive Behaviors: Analyze head and hand stimming observations with clinical significance
-   - Facial Expressions: Interpret emotional expression variability (${liveVideoFeatures?.facialExpressionVariability ? (liveVideoFeatures.facialExpressionVariability * 100).toFixed(1) + '%' : 'N/A'})
+  - Eye Contact & Social Communication: Interpret ${liveVideoFeatures?.eyeContact || 'N/A'} eye contact and ${liveVideoFeatures?.socialReciprocity || 'N/A'} reciprocity
+  - Repetitive Behaviors: Analyze head and hand stimming observations with clinical significance
+  - Gestures: Interpret ${liveVideoFeatures?.handGesture || 'N/A'} communicative gesture usage
+  - Facial Expressions: Interpret emotional expression variability (${liveVideoFeatures?.emotionVariation || 'N/A'})
    - Communication Development: Based on questionnaire responses
    - Overall Developmental Profile: Synthesis of all assessment data
 

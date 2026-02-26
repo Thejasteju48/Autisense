@@ -106,7 +106,7 @@ const Dashboard = () => {
                   <span className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
                   <h4 className="font-semibold text-gray-900">Video Assessment</h4>
                 </div>
-                <p className="text-sm text-gray-600 ml-8">Live behavioral analysis (2-4 minutes)</p>
+                <p className="text-sm text-gray-600 ml-8">Recorded video analysis (2-4 minutes)</p>
               </div>
               <div className="bg-white p-4 rounded-lg border border-purple-200">
                 <div className="flex items-center mb-2">
@@ -156,25 +156,39 @@ const Dashboard = () => {
               {/* Latest Screening Result */}
               {latestScreenings[child._id] ? (
                 <div className={`rounded-xl p-4 border-2 mb-4 ${getRiskLevelColor(latestScreenings[child._id].riskLevel)}`}>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium">Latest Screening</span>
                     <span className="text-xs">
                       {new Date(latestScreenings[child._id].completedAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold">
-                      {latestScreenings[child._id].riskLevel} Risk
-                    </span>
-                    <span className="text-sm">
-                      Score: {latestScreenings[child._id].finalScore.toFixed(1)}%
-                    </span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold">
+                        {latestScreenings[child._id].riskLevel} Risk
+                      </span>
+                      <span className="text-sm font-semibold">
+                        Final: {latestScreenings[child._id].finalScore.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="text-xs space-y-1 pt-2 border-t border-current border-opacity-20">
+                      <div className="flex justify-between">
+                        <span>📋 Questionnaire Score:</span>
+                        <span className="font-semibold">{(latestScreenings[child._id].mlQuestionnaireScore || 0).toFixed(1)}%</span>
+                      </div>
+                      {latestScreenings[child._id].interpretation?.videoBehaviorScore !== undefined && (
+                        <div className="flex justify-between">
+                          <span>🎬 Video Analysis Score:</span>
+                          <span className="font-semibold">{latestScreenings[child._id].interpretation.videoBehaviorScore.toFixed(1)}%</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div className="rounded-xl p-4 border-2 border-dashed border-purple-300 mb-4 bg-purple-50">
                   <p className="text-sm text-purple-900 font-medium text-center mb-2">Ready to Screen</p>
-                  <p className="text-xs text-purple-700 text-center">Start live video behavior analysis</p>
+                  <p className="text-xs text-purple-700 text-center">Upload recorded video for analysis</p>
                 </div>
               )}
 
@@ -237,7 +251,7 @@ const Dashboard = () => {
         <p className="text-gray-700 mb-4">
           Early autism screening can help identify developmental differences at an early age, 
           allowing for timely intervention and support. Our professional screening system uses 
-          real-time video behavior analysis with AI to detect 7 key behavioral indicators, 
+          recorded video behavior analysis with AI to detect 6 key behavioral indicators, 
           combined with clinical questionnaires for comprehensive assessment.
         </p>
         <p className="text-sm text-gray-600 italic">

@@ -40,72 +40,18 @@ const screeningSchema = new mongoose.Schema({
     postalCode: String
   },
   
-  // Live Video Features (7 behavioral markers from ML service)
+  // Live Video Features (6 behavioral markers from ML service)
   liveVideoFeatures: {
-    // Feature 1: Eye Contact
-    eyeContactRatio: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    eyeContactLevel: String,  // low, normal, high
-    eyeContactInterpretation: String,
-    
-    // Feature 2: Blink Rate
-    blinkRatePerMinute: Number,
-    blinkLevel: String,  // low, normal, high
-    blinkInterpretation: String,
-    
-    // Feature 3: Head Movement Rate
-    headMovementRate: Number,
-    headMovementLevel: String,  // low, normal, high
-    headMovementInterpretation: String,
-    
-    // Feature 4: Head Repetitive Movements
-    headMovements: {
-      present: Boolean,
-      repetitive: Boolean,
-      description: String
-    },
-    
-    // Feature 5: Hand Repetitive Movements (Stimming)
-    handStimming: {
-      present: Boolean,
-      severity: String,  // NORMAL, LOW, MODERATE, HIGH
-      description: String
-    },
-    
-    // Feature 6: Social Gestures
-    socialGestures: {
-      present: Boolean,
-      frequency_per_minute: Number,
-      description: String
-    },
-    
-    // Feature 7: Facial Expression Variability (DeepFace)
-    facialExpressionVariability: Number,
-    expressionLevel: String,  // low, normal, high
-    expressionInterpretation: String,
-    
+    eyeContact: String,         // Normal Eye Contact | Low Eye Contact
+    headStimming: String,       // Present | Absent
+    handStimming: String,       // Present | Absent
+    handGesture: String,        // Present | Absent
+    socialReciprocity: String,  // Normal | Low
+    emotionVariation: String,   // Normal | Low
+
     // Session metadata
     sessionDuration: Number,
-    totalFrames: Number,
-    
-    // Clinical interpretation from ML service
-    interpretation: {
-      concerns: [String],
-      riskScore: Number,
-      risk_level: String,  // Low, Moderate, High
-      summary: String,
-      total_concerns: Number
-    },
-    
-    // Data quality metrics
-    dataQuality: {
-      face_detection_ratio: Number,
-      blink_data_quality: mongoose.Schema.Types.Mixed,
-      expression_detection_rate: Number
-    }
+    totalFrames: Number
   },
   
   // Video Behavior Analysis Fields (OLD - for backward compatibility)
@@ -175,12 +121,18 @@ const screeningSchema = new mongoose.Schema({
     type: String,
     enum: ['Low', 'Moderate', 'High']
   },
+  mlQuestionnaireScore: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
   
   // Interpretation & Recommendations
   interpretation: {
     summary: String,
     confidence: Number,
     liveVideoSummary: String,
+    videoBehaviorScore: Number,
     recommendations: [String],
     llmAnalysis: String  // LLM-generated comprehensive analysis from Groq
   },

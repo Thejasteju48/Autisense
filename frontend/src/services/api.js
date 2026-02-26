@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 // Create axios instance
 const api = axios.create({
@@ -76,7 +76,7 @@ export const childrenAPI = {
 
 // Screening APIs
 export const screeningAPI = {
-  start: (childId, type = 'Live Video') => api.post('/screenings/start', { childId, type }),
+  start: (childId, type = 'Recorded Video') => api.post('/screenings/start', { childId, type }),
   
   submitQuestionnaire: (screeningId, data) => 
     api.post(`/screenings/${screeningId}/questionnaire`, data),

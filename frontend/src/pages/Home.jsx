@@ -19,13 +19,13 @@ const Home = () => {
   const features = [
     {
       icon: SparklesIcon,
-      title: 'Live Video Analysis',
-      description: 'Real-time behavioral assessment using AI-powered video processing. Monitors 7 key behavioral indicators through webcam (no recording/storage).'
+      title: 'Recorded Video Analysis',
+      description: 'Behavioral assessment using AI-powered video processing. Upload pre-recorded videos for analysis. Monitors 6 key behavioral indicators with advanced computer vision.'
     },
     {
       icon: ShieldCheckIcon,
       title: 'Evidence-Based Assessment',
-      description: 'Based on DSM-5 autism diagnostic criteria and M-CHAT-R protocols. Analyzes eye contact, blink patterns, head movements, hand flapping, body rocking, face orientation, and emotional stability.'
+      description: 'Based on DSM-5 autism diagnostic criteria and M-CHAT-R protocols. Analyzes eye contact, hand stimming, head stimming, hand gestures, social reciprocity, and emotion variation.'
     },
     {
       icon: ChartBarIcon,
@@ -35,7 +35,7 @@ const Home = () => {
     {
       icon: ClockIcon,
       title: '2-4 Minutes Assessment',
-      description: 'Quick and efficient screening session. Live video analysis combined with clinical questionnaire for accurate results.'
+      description: 'Quick and efficient screening session. Recorded video analysis combined with clinical questionnaire for accurate results.'
     },
     {
       icon: UserGroupIcon,
@@ -45,7 +45,7 @@ const Home = () => {
     {
       icon: CheckCircleIcon,
       title: 'Privacy First',
-      description: 'No video recording or storage. Real-time analysis only transmits numeric behavioral features. Your child\'s privacy is fully protected.'
+      description: 'No long-term video storage. Analysis only transmits behavioral signals. Your child\'s privacy is fully protected.'
     }
   ];
 
@@ -83,28 +83,92 @@ const Home = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Autisense</span>
-          </h1>
-          <p className="text-2xl text-gray-800 mb-4 leading-relaxed font-semibold">
-            An Intelligent Web System for Early Detection of Autism
-          </p>
-          <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-            Professional <strong>video behavior assessment</strong> for children aged 12-72 months. Our AI analyzes real-time video to detect 7 key autism markers: eye contact patterns, blink rate, head movements, hand flapping, body rocking, face orientation, and emotional stability. Get instant risk assessment with clinical recommendations.
-          </p>
-          <div className="flex justify-center space-x-4">
-            <Link to="/register">
-              <button className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-lg shadow-xl hover:shadow-2xl transition-all text-lg">
-                Start Free Screening
-              </button>
-            </Link>
-            <a href="#how-it-works">
-              <button className="bg-white hover:bg-purple-50 text-purple-700 font-bold py-4 px-8 rounded-lg shadow-xl hover:shadow-2xl transition-all text-lg border-2 border-purple-600">
-                Learn More
-              </button>
-            </a>
+      <section className="relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-purple-400/40 blur-3xl" />
+        <div className="absolute top-10 right-0 h-96 w-96 rounded-full bg-indigo-400/30 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-fuchsia-300/20 blur-3xl" />
+        <div className="container mx-auto px-4 py-20 relative">
+          <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-10 items-center">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-purple-200 bg-white/80 px-4 py-2 text-sm font-semibold text-purple-700 shadow-sm">
+                AI-powered screening • Recorded video
+              </span>
+              <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mt-6 mb-6 leading-tight">
+                <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Autisense</span>
+                <span className="block text-4xl md:text-5xl text-gray-900 mt-3">Early Autism Insight, Faster</span>
+              </h1>
+              <p className="text-2xl text-gray-800 mb-4 leading-relaxed font-semibold">
+                An Intelligent Web System for Early Detection of Autism
+              </p>
+              <p className="text-lg text-gray-700 mb-8 leading-relaxed max-w-2xl">
+                Professional <strong>video behavior assessment combined with clinical questionnaire</strong> for children aged 12-72 months. Our AI analyzes recorded video to detect 6 key autism markers: eye contact, hand stimming, head stimming, hand gestures, social reciprocity, and emotion variation. Parents complete a 20-question questionnaire based on DSM-5 criteria. Results combine both assessments (60% questionnaire + 40% video) for comprehensive risk evaluation. Get instant risk assessment with clinical recommendations.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link to="/register">
+                  <button className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl shadow-xl hover:shadow-2xl transition-all text-lg">
+                    Start Free Screening
+                  </button>
+                </Link>
+                <a href="#how-it-works">
+                  <button className="bg-white/90 hover:bg-purple-50 text-purple-700 font-bold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all text-lg border border-purple-200">
+                    Learn More
+                  </button>
+                </a>
+              </div>
+              <div className="mt-10 flex flex-wrap gap-3">
+                <span className="inline-flex items-center rounded-full bg-white/80 border border-purple-100 px-4 py-2 text-sm font-semibold text-purple-700 shadow-sm">
+                  6 behavioral markers
+                </span>
+                <span className="inline-flex items-center rounded-full bg-white/80 border border-indigo-100 px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm">
+                  2-4 min typical analysis
+                </span>
+                <span className="inline-flex items-center rounded-full bg-white/80 border border-purple-100 px-4 py-2 text-sm font-semibold text-purple-700 shadow-sm">
+                  No video storage
+                </span>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="absolute -top-6 -right-6 h-24 w-24 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 opacity-70 blur-xl" />
+              <div className="rounded-3xl bg-gradient-to-br from-white/95 to-purple-50/80 border border-purple-100 shadow-2xl p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-900">Recorded Video Assessment</h3>
+                  <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">Secure & Private</span>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 rounded-2xl border border-purple-100 bg-white/90 p-4 shadow-sm">
+                    <span className="h-10 w-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">1</span>
+                    <div>
+                      <p className="font-semibold text-gray-900">Upload recorded video</p>
+                      <p className="text-sm text-gray-600">Provide a recorded session for analysis.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-2xl border border-indigo-100 bg-white/90 p-4 shadow-sm">
+                    <span className="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">2</span>
+                    <div>
+                      <p className="font-semibold text-gray-900">Complete questionnaire</p>
+                      <p className="text-sm text-gray-600">Answer 20 clinical questions about your child's behavior and development (60% of assessment).</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-2xl border border-purple-100 bg-white/90 p-4 shadow-sm">
+                    <span className="h-10 w-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">3</span>
+                    <div>
+                      <p className="font-semibold text-gray-900">Get instant report</p>
+                      <p className="text-sm text-gray-600">Receive combined assessment with risk level, behavior analysis, and personalized recommendations.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-purple-100 bg-white/80 p-3">
+                    <p className="text-sm font-semibold text-gray-900">Recorded upload</p>
+                    <p className="text-xs text-gray-600">Video + questionnaire</p>
+                  </div>
+                  <div className="rounded-2xl border border-indigo-100 bg-white/80 p-3">
+                    <p className="text-sm font-semibold text-gray-900">Dual assessment</p>
+                    <p className="text-xs text-gray-600">60% Q + 40% video</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -120,9 +184,9 @@ const Home = () => {
               professional screening system that helps parents identify potential early signs of autism in children aged 12 months to 6 years.
             </p>
             <p className="text-lg text-purple-100 mb-6 leading-relaxed">
-              Through advanced real-time video analysis powered by MediaPipe AI, we assess 7 key behavioral markers including 
-              eye contact patterns, repetitive movements, social responsiveness, and emotional regulation. Our screening process 
-              is non-invasive, requires no video storage, and provides immediate professional-grade assessment.
+              Our comprehensive screening combines two proven assessment methods. Through advanced recorded video analysis powered by MediaPipe AI, we assess 6 key behavioral markers including 
+              eye contact, repetitive movements, gestures, social reciprocity, and emotion variation (40% of assessment). This is combined with a clinical questionnaire 
+              completed by parents with 20 carefully-designed questions based on DSM-5 criteria (60% of assessment). This dual-method approach provides accurate, evidence-based risk evaluation.
             </p>
             <div className="bg-white border-l-4 border-purple-300 p-6 rounded-r-lg">
               <p className="text-purple-900 font-semibold">
@@ -137,14 +201,19 @@ const Home = () => {
       {/* Features Section */}
       <section id="features" className="py-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-gray-900 mb-12 text-center">Key Features</h2>
+          <div className="max-w-4xl mx-auto text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900">Key Features</h2>
+            <p className="text-lg text-gray-600 mt-3">Clinical-grade analysis, designed to be fast, private, and parent-friendly.</p>
+          </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {features.map((feature, index) => (
               <div 
                 key={index}
-                className="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all border-2 border-purple-200 hover:border-purple-400"
+                className="bg-white/90 p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all border border-purple-100 hover:border-purple-300"
               >
-                <feature.icon className="h-12 w-12 text-purple-600 mb-4" />
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center mb-4 shadow-md">
+                  <feature.icon className="h-7 w-7 text-white" />
+                </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
                 <p className="text-gray-700 leading-relaxed">{feature.description}</p>
               </div>
@@ -174,8 +243,8 @@ const Home = () => {
                   2
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Live Video Assessment</h3>
-                  <p className="text-gray-700">Our AI analyzes your child's behavior in real-time through webcam (no recording). Takes 2-4 minutes with parent guidance.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Recorded Video Assessment</h3>
+                  <p className="text-gray-700">Upload a recorded session for analysis. Typical processing takes 2-4 minutes.</p>
                 </div>
               </div>
 
@@ -184,14 +253,24 @@ const Home = () => {
                   3
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Review Results</h3>
-                  <p className="text-gray-700">Receive a detailed screening report with personalized recommendations and next steps.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Complete Parent Questionnaire</h3>
+                  <p className="text-gray-700">Answer 20 clinically-designed yes/no questions about your child's behavior and development. This represents 60% of the final risk assessment.</p>
                 </div>
               </div>
 
               <div className="flex items-start space-x-4">
                 <div className="bg-gradient-to-br from-purple-600 to-indigo-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-lg">
                   4
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Review Combined Results</h3>
+                  <p className="text-gray-700">Receive a detailed screening report combining video analysis (40%) and questionnaire assessment (60%) for comprehensive risk evaluation.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-4">
+                <div className="bg-gradient-to-br from-purple-600 to-indigo-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-lg">
+                  5
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Take Action</h3>
@@ -208,7 +287,8 @@ const Home = () => {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold text-white mb-6">Ready to Get Started?</h2>
           <p className="text-xl text-purple-100 mb-8 max-w-2xl mx-auto">
-            Take the first step in understanding your child's development. Our screening takes just 15-20 minutes.
+            Take the first step in understanding your child's development. Our screening takes just 15-20 minutes: 
+            upload a recorded video, complete a brief questionnaire, and receive instant risk assessment.
           </p>
           <Link to="/register">
             <button className="bg-white hover:bg-purple-50 text-purple-700 font-bold py-4 px-10 rounded-lg shadow-2xl hover:shadow-3xl transition-all text-lg">

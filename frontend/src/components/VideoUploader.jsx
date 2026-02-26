@@ -26,10 +26,10 @@ const VideoUploader = ({
   const [error, setError] = useState(null);
   const [videoDuration, setVideoDuration] = useState(null);
   
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
   const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-  const MIN_DURATION = 120; // 2 minutes
-  const MAX_DURATION = 300; // 5 minutes
+  const MIN_DURATION = 60; // 1 minute recommended
+  const MAX_DURATION = 300; // 5 minutes recommended
   const ACCEPTED_FORMATS = ['video/mp4', 'video/webm', 'video/avi', 'video/quicktime'];
 
   // Validate video file
@@ -82,17 +82,6 @@ const VideoUploader = ({
       const duration = await getVideoDuration(file);
       setVideoDuration(duration);
       
-      // Check duration
-      if (duration < MIN_DURATION) {
-        setError(`Video must be at least ${MIN_DURATION / 60} minutes long. Current: ${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}`);
-        return;
-      }
-      
-      if (duration > MAX_DURATION) {
-        setError(`Video should not exceed ${MAX_DURATION / 60} minutes. Current: ${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}`);
-        return;
-      }
-      
       setSelectedFile(file);
     } catch (err) {
       console.error('Error getting video duration:', err);
@@ -144,6 +133,7 @@ const VideoUploader = ({
       const formData = new FormData();
       formData.append('video', selectedFile);
       formData.append('screeningId', screeningId);
+      formData.append('duration', videoDuration.toString()); // Send actual video duration
 
       console.log('📤 Uploading video:', {
         fileName: selectedFile.name,
@@ -274,7 +264,7 @@ const VideoUploader = ({
 
           <div className="mt-6 text-sm text-gray-500 space-y-1">
             <p>Accepted formats: MP4, WebM, AVI, MOV</p>
-            <p>Duration: {MIN_DURATION / 60}-{MAX_DURATION / 60} minutes</p>
+            <p>Duration: any (1-5 minutes recommended)</p>
             <p>Maximum size: {MAX_FILE_SIZE / (1024 * 1024)}MB</p>
           </div>
         </motion.div>
@@ -391,7 +381,7 @@ const VideoUploader = ({
               <li>Good lighting throughout the video</li>
               <li>Stable camera position at eye level</li>
               <li>Natural behavior (avoid prompting)</li>
-              <li>3-4 minutes duration recommended</li>
+              <li>1-5 minutes duration recommended</li>
             </ul>
           </div>
         </div>

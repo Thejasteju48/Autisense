@@ -142,26 +142,6 @@ const History = () => {
                         >
                           View Details
                         </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const response = await screeningAPI.downloadReport(screening._id);
-                              const url = window.URL.createObjectURL(new Blob([response.data]));
-                              const link = document.createElement('a');
-                              link.href = url;
-                              link.setAttribute('download', `screening-report-${screening._id}.pdf`);
-                              document.body.appendChild(link);
-                              link.click();
-                              link.parentNode.removeChild(link);
-                              toast.success('Report downloaded');
-                            } catch (error) {
-                              toast.error('Failed to download report');
-                            }
-                          }}
-                          className="btn-secondary text-sm px-4 py-2"
-                        >
-                          Download PDF
-                        </button>
                       </>
                     )}
                   </div>

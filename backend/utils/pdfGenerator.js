@@ -83,7 +83,7 @@ exports.generatePDFReport = async (screening) => {
       doc.moveDown(2);
 
       // Video Analysis Features
-      if (screening.videoFeatures) {
+         if (screening.liveVideoFeatures) {
         doc.fontSize(14)
            .fillColor('#34495E')
            .text('Video Analysis');
@@ -91,11 +91,14 @@ exports.generatePDFReport = async (screening) => {
 
         doc.fontSize(11)
            .fillColor('#2C3E50');
-        
-        doc.text(`• Eye Contact Ratio: ${(screening.videoFeatures.eyeContactRatio * 100).toFixed(1)}%`);
-        doc.text(`• Gesture Frequency: ${screening.videoFeatures.gestureFrequency.toFixed(2)} per minute`);
-        doc.text(`• Repetitive Behavior: ${(screening.videoFeatures.repetitiveBehaviorRatio * 100).toFixed(1)}%`);
-        doc.text(`• Smile Frequency: ${screening.videoFeatures.smileFrequency.toFixed(2)} per minute`);
+            const features = screening.liveVideoFeatures;
+
+            doc.text(`• Eye Contact: ${features.eyeContact || 'N/A'}`);
+            doc.text(`• Head Stimming: ${features.headStimming || 'N/A'}`);
+            doc.text(`• Hand Stimming: ${features.handStimming || 'N/A'}`);
+            doc.text(`• Hand Gesture: ${features.handGesture || 'N/A'}`);
+            doc.text(`• Social Reciprocity: ${features.socialReciprocity || 'N/A'}`);
+            doc.text(`• Emotion Variation: ${features.emotionVariation || 'N/A'}`);
         
         doc.moveDown();
       }
