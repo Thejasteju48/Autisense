@@ -1,6 +1,22 @@
+# ============================================================================
+# Autisense Emotion Service - Facial Expression Analysis (Port 8001)
+# ============================================================================
+
+# Core Framework Dependencies
+# FastAPI: Modern async web framework for Python APIs
 fastapi==0.104.1
+# Uvicorn: ASGI server for running FastAPI
 uvicorn[standard]==0.24.0
+# Pydantic: Data validation and settings management
 pydantic==2.5.0
+
+# Computer Vision Dependencies
+# OpenCV: Video processing and frame analysis
 opencv-python==4.12.0.88
+# NumPy: Numerical computing for facial expression analysis
 numpy>=2.0,<2.3
+
+# Deep Learning Dependencies
+# PyTorch: Deep learning framework for emotion recognition models
+# Used for: Facial expression classification, emotion variation detection
 torch==2.5.1
