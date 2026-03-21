@@ -40,7 +40,7 @@ const Home = () => {
     {
       icon: UserGroupIcon,
       title: 'Multi-Child Tracking',
-      description: 'Manage profiles for multiple children (ages 12-72 months), compare screening history, and monitor developmental progress over time.'
+      description: 'Manage profiles for multiple children (ages 16-48 months), compare screening history, and monitor developmental progress over time.'
     },
     {
       icon: CheckCircleIcon,
@@ -101,7 +101,7 @@ const Home = () => {
                 An Intelligent Web System for Early Detection of Autism
               </p>
               <p className="text-lg text-gray-700 mb-8 leading-relaxed max-w-2xl">
-                Professional <strong>video behavior assessment combined with clinical questionnaire</strong> for children aged 12-72 months. Our AI analyzes recorded video to detect 6 key autism markers: eye contact, hand stimming, head stimming, hand gestures, social reciprocity, and emotion variation. Parents complete a 20-question questionnaire based on DSM-5 criteria. Results combine both assessments (60% questionnaire + 40% video) for comprehensive risk evaluation. Get instant risk assessment with clinical recommendations.
+                Professional <strong>video behavior assessment combined with clinical questionnaire</strong> for children aged 16-48 months. Our AI analyzes recorded video to detect 6 key autism markers: eye contact, hand stimming, head stimming, hand gestures, social reciprocity, and emotion variation. Parents complete a 20-question questionnaire based on DSM-5 criteria. Results combine both assessments (50% questionnaire + 50% video) for comprehensive risk evaluation. Get instant risk assessment with clinical recommendations.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link to="/register">
@@ -146,7 +146,7 @@ const Home = () => {
                     <span className="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">2</span>
                     <div>
                       <p className="font-semibold text-gray-900">Complete questionnaire</p>
-                      <p className="text-sm text-gray-600">Answer 20 clinical questions about your child's behavior and development (60% of assessment).</p>
+                      <p className="text-sm text-gray-600">Answer 20 clinical questions about your child's behavior and development (50% of assessment).</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 rounded-2xl border border-purple-100 bg-white/90 p-4 shadow-sm">
@@ -164,7 +164,7 @@ const Home = () => {
                   </div>
                   <div className="rounded-2xl border border-indigo-100 bg-white/80 p-3">
                     <p className="text-sm font-semibold text-gray-900">Dual assessment</p>
-                    <p className="text-xs text-gray-600">60% Q + 40% video</p>
+                    <p className="text-xs text-gray-600">50% Q + 50% video</p>
                   </div>
                 </div>
               </div>
@@ -181,12 +181,12 @@ const Home = () => {
             <p className="text-lg text-purple-100 mb-6 leading-relaxed">
               Early identification of autism spectrum disorder (ASD) is crucial for ensuring children receive timely 
               interventions that can significantly improve developmental outcomes. Our platform provides an accessible, 
-              professional screening system that helps parents identify potential early signs of autism in children aged 12 months to 6 years.
+              professional screening system that helps parents identify potential early signs of autism in children aged 16-48 months.
             </p>
             <p className="text-lg text-purple-100 mb-6 leading-relaxed">
               Our comprehensive screening combines two proven assessment methods. Through advanced recorded video analysis powered by MediaPipe AI, we assess 6 key behavioral markers including 
               eye contact, repetitive movements, gestures, social reciprocity, and emotion variation (40% of assessment). This is combined with a clinical questionnaire 
-              completed by parents with 20 carefully-designed questions based on DSM-5 criteria (60% of assessment). This dual-method approach provides accurate, evidence-based risk evaluation.
+              completed by parents with 20 carefully-designed questions based on DSM-5 criteria (50% of assessment). This dual-method approach provides accurate, evidence-based risk evaluation.
             </p>
             <div className="bg-white border-l-4 border-purple-300 p-6 rounded-r-lg">
               <p className="text-purple-900 font-semibold">
@@ -254,7 +254,7 @@ const Home = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Complete Parent Questionnaire</h3>
-                  <p className="text-gray-700">Answer 20 clinically-designed yes/no questions about your child's behavior and development. This represents 60% of the final risk assessment.</p>
+                  <p className="text-gray-700">Answer 20 clinically-designed yes/no questions about your child's behavior and development. This represents 50% of the final risk assessment.</p>
                 </div>
               </div>
 
@@ -264,7 +264,7 @@ const Home = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Review Combined Results</h3>
-                  <p className="text-gray-700">Receive a detailed screening report combining video analysis (40%) and questionnaire assessment (60%) for comprehensive risk evaluation.</p>
+                  <p className="text-gray-700">Receive a detailed screening report combining video analysis (50%) and questionnaire assessment (50%) for comprehensive risk evaluation.</p>
                 </div>
               </div>
 

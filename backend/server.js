@@ -10,6 +10,7 @@ dotenv.config();
 const authRoutes = require('./routes/authRoutes');
 const childRoutes = require('./routes/childRoutes');
 const screeningRoutes = require('./routes/screeningRoutes');
+const centersRoutes = require('./routes/centersRoutes');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/children', childRoutes);
 app.use('/api/screenings', screeningRoutes);
+app.use('/api/centers', centersRoutes);
 app.use('/api/video', require('./routes/videoProcessingRoutes'));
 
 // Health check

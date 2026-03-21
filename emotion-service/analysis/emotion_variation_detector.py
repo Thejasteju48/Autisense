@@ -1,5 +1,6 @@
 import os
 import cv2
+cv2.ocl.setUseOpenCL(False)  # Disable OpenCL to prevent GPU memory allocation errors
 import torch
 import torch.nn as nn
 import numpy as np

@@ -2,8 +2,8 @@
 
 ## Project Overview
 Autisense is an intelligent web system for early detection of autism using dual assessment:
-- **60%**: M-CHAT-R 20-item questionnaire (DSM-5 based)
-- **40%**: AI video analysis of behavioral markers
+- **50%**: M-CHAT-R 20-item questionnaire (DSM-5 based)
+- **50%**: AI video analysis of behavioral markers
 
 ---
 

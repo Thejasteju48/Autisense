@@ -126,6 +126,12 @@ const screeningSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  videoScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0
+  },
   
   // Interpretation & Recommendations
   interpretation: {

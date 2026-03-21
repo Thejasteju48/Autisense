@@ -22,7 +22,7 @@ router.get('/', childController.getChildren);
  */
 router.post('/', uploadProfile, [
   body('name').trim().notEmpty().withMessage('Child name is required'),
-  body('ageInMonths').isInt({ min: 12, max: 72 }).withMessage('Age must be between 12 and 72 months'),
+  body('ageInMonths').isInt({ min: 16, max: 48 }).withMessage('Age must be between 16 and 48 months'),
   body('gender').isIn(['male', 'female', 'other']).withMessage('Valid gender is required')
 ], childController.addChild);
 

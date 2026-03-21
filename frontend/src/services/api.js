@@ -89,4 +89,9 @@ export const screeningAPI = {
     api.get(`/screenings/${screeningId}/report`, { responseType: 'blob' }),
 };
 
+export const centersAPI = {
+  getNearby: ({ city, state, country }) =>
+    api.get('/centers', { params: { city, state, country } }),
+};
+
 export default api;

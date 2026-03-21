@@ -6,11 +6,11 @@
 
 ## ABSTRACT
 
-Autism Spectrum Disorder (ASD) affects approximately 1 in 36 children globally, yet early detection remains challenging in many regions. Early identification through screening can significantly improve developmental outcomes through timely intervention. This project presents **Autisense**, an intelligent web-based system for early autism detection in children aged 12-72 months (1-6 years).
+Autism Spectrum Disorder (ASD) affects approximately 1 in 36 children globally, yet early detection remains challenging in many regions. Early identification through screening can significantly improve developmental outcomes through timely intervention. This project presents **Autisense**, an intelligent web-based system for early autism detection in children aged 16-48 months.
 
 The system employs a dual-assessment methodology combining:
-1. **Video-based behavioral analysis** (40% of assessment) - Using MediaPipe AI to detect 6 key behavioral markers from recorded video
-2. **Clinical questionnaire assessment** (60% of assessment) - M-CHAT-R validated screening questionnaire with 20 yes/no questions
+1. **Video-based behavioral analysis** (50% of assessment) - Using MediaPipe AI to detect 6 key behavioral markers from recorded video
+2. **Clinical questionnaire assessment** (50% of assessment) - M-CHAT-R validated screening questionnaire with 20 yes/no questions
 
 The final risk assessment combines both methods using machine learning ensemble models (Random Forest + Gradient Boosting) to predict autism likelihood on a 0-100% scale, categorizing results as Low Risk (<40%), Moderate Risk (40-70%), or High Risk (≥70%).
 
@@ -93,7 +93,7 @@ Autism is diagnosed based on persistent patterns in two core domains:
 #### 2.2.1 M-CHAT-R (Modified Checklist for Autism in Toddlers - Revised)
 
 **Background:** Developed by Robins et al. (2009), revised in 2020
-- **Age Range:** 16-30 months (also used for 12-72 months with adaptation)
+- **Age Range:** 16-48 months
 - **Format:** 20-item yes/no questionnaire for parent completion
 - **Administration Time:** 5-10 minutes
 - **Sensitivity:** 91% at detecting children later diagnosed with ASD
@@ -476,7 +476,7 @@ SCREENING DATA FLOW:
 - **Key Information Displayed:**
   - 20-question M-CHAT-R questionnaire overview
   - 6 video behavioral markers explained
-  - Scoring methodology (60% questionnaire + 40% video)
+  - Scoring methodology (50% questionnaire + 50% video)
   - Risk level definitions
 
 **2. Authentication (Login.jsx, Register.jsx)**
@@ -1126,10 +1126,10 @@ exports.completeScreening = async (req, res) => {
     videoScore = (concernCount / 6) * 100;  // Convert to percentage
   }
   
-  // 6. Combine scores (60% questionnaire + 40% video)
+  // 6. Combine scores (50% questionnaire + 50% video)
   let finalScore;
   if (videoScore !== null) {
-    finalScore = (questionnairePrediction.probability * 0.6) + (videoScore * 0.4);
+    finalScore = (questionnairePrediction.probability * 0.5) + (videoScore * 0.5);
   } else {
     finalScore = questionnairePrediction.probability;
   }
@@ -2295,7 +2295,7 @@ print('✓ Models saved successfully')
   
   // ML Predictions
   mlQuestionnaireScore: Number (0-100),  // ML-predicted probability %
-  finalScore: Number (0-100),            // Combined: 60% Q + 40% Video
+  finalScore: Number (0-100),            // Combined: 50% Q + 50% Video
   riskLevel: String (Low/Moderate/High),
   
   // Interpretation

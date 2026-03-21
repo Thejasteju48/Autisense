@@ -68,8 +68,8 @@ const AddChild = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (formData.ageInMonths < 12 || formData.ageInMonths > 72) {
-      toast.error('Age must be between 12 and 72 months (1-6 years)');
+    if (formData.ageInMonths < 16 || formData.ageInMonths > 48) {
+      toast.error('Age must be between 16 and 48 months');
       return;
     }
 
@@ -106,7 +106,7 @@ const AddChild = () => {
           </svg>
           <div>
             <p className="text-sm text-blue-900 font-medium">Screening Requirements</p>
-            <p className="text-xs text-blue-700 mt-1">Child must be between <strong>12-72 months old (1-6 years)</strong> for accurate assessment</p>
+            <p className="text-xs text-blue-700 mt-1">Child must be between <strong>16-48 months old</strong> for accurate assessment</p>
           </div>
         </div>
       </div>
@@ -165,15 +165,15 @@ const AddChild = () => {
                 value={formData.ageInMonths}
                 onChange={handleChange}
                 required
-                min="12"
-                max="72"
+                min="16"
+                max="48"
                 placeholder="e.g., 24"
                 readOnly={Boolean(formData.dateOfBirth)}
                 className={formData.dateOfBirth ? 'bg-slate-100 text-slate-700 cursor-not-allowed' : ''}
                 helpText={
                   formData.dateOfBirth
                     ? 'Auto-calculated from Date of Birth'
-                    : 'Between 12 and 72 months (1-6 years)'
+                    : 'Between 16 and 48 months'
                 }
               />
 

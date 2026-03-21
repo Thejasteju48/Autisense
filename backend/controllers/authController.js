@@ -16,7 +16,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    const { email, password, parentFirstName, parentLastName, phoneNumber } = req.body;
+    const { email, password, parentFirstName, parentLastName, phoneNumber, relationshipToChild, city, state, country } = req.body;
 
     // Combine first and last name
     const name = `${parentFirstName} ${parentLastName}`.trim();
@@ -43,6 +43,10 @@ exports.register = async (req, res) => {
       password,
       name,
       phoneNumber,
+      relationshipToChild,
+      city,
+      state,
+      country,
       role: 'parent'
     });
 

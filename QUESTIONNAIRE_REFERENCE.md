@@ -1,7 +1,7 @@
 # M-CHAT-R Questionnaire Reference Guide
 
 ## Overview
-The Autisense screening system uses the **M-CHAT-R (Modified Checklist for Autism in Toddlers - Revised)**, a validated, 20-item screening questionnaire for autism spectrum disorder in children aged 12-72 months.
+The Autisense screening system uses the **M-CHAT-R (Modified Checklist for Autism in Toddlers - Revised)**, a validated, 20-item screening questionnaire for autism spectrum disorder in children aged 16-48 months.
 
 ---
 
@@ -146,14 +146,14 @@ The ML service automatically encodes responses accounting for reverse coding:
 ✅ **Parent-Completed:** Designed for caregiver observations of real behaviors  
 
 ⚠️ **Screening Only:** Not a diagnostic tool; positive results warrant professional evaluation  
-⚠️ **Age-Appropriate:** Designed for children 12-72 months (2-6 years)
+⚠️ **Age-Appropriate:** Designed for children 16-48 months
 
 ---
 
 ## Integration with Video Analysis
 
-**Final Score = 60% Questionnaire + 40% Video Behavior Analysis**
+**Final Score = 50% Questionnaire + 50% Video Behavior Analysis**
 
-- **Questionnaire (60%):** M-CHAT-R responses processed through ML ensemble model
-- **Video (40%):** 6 behavioral markers (eye contact, stimming, hand gesture, social reciprocity, emotion variation) derived from video analysis
+- **Questionnaire (50%):** M-CHAT-R responses processed through ML ensemble model
+- **Video (50%):** 6 behavioral markers (eye contact, stimming, hand gesture, social reciprocity, emotion variation) derived from video analysis
 - **Combined Risk Assessment:** Comprehensive evaluation leveraging both assessment methods

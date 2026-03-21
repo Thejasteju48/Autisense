@@ -13,6 +13,10 @@ const Register = () => {
     parentFirstName: '',
     parentLastName: '',
     phoneNumber: '',
+    relationshipToChild: '',
+    city: '',
+    state: '',
+    country: '',
   });
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -41,12 +45,22 @@ const Register = () => {
     setLoading(true);
 
     try {
+      if (!formData.relationshipToChild) {
+        toast.error('Please select your relationship to the child');
+        setLoading(false);
+        return;
+      }
+
       await register({
         email: formData.email,
         password: formData.password,
         parentFirstName: formData.parentFirstName,
         parentLastName: formData.parentLastName,
         phoneNumber: formData.phoneNumber,
+        relationshipToChild: formData.relationshipToChild,
+        city: formData.city,
+        state: formData.state,
+        country: formData.country,
       });
       toast.success('Account created! Add your child to start screening');
       navigate('/dashboard');
@@ -186,6 +200,54 @@ const Register = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-lg focus:outline-none focus:border-purple-500 focus:bg-white transition-all"
+                    placeholder="Mumbai"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+                    State *
+                  </label>
+                  <input
+                    type="text"
+                    id="state"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-lg focus:outline-none focus:border-purple-500 focus:bg-white transition-all"
+                    placeholder="Maharashtra"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
+                    Country *
+                  </label>
+                  <input
+                    type="text"
+                    id="country"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-lg focus:outline-none focus:border-purple-500 focus:bg-white transition-all"
+                    placeholder="India"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
                   Phone Number (Optional)
@@ -199,6 +261,32 @@ const Register = () => {
                   className="w-full px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-lg focus:outline-none focus:border-purple-500 focus:bg-white transition-all"
                   placeholder="+1 234 567 8900"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="relationshipToChild" className="block text-sm font-medium text-gray-700 mb-2">
+                  Relationship to Child *
+                </label>
+                <select
+                  id="relationshipToChild"
+                  name="relationshipToChild"
+                  value={formData.relationshipToChild}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 bg-purple-50 border-2 border-purple-200 rounded-lg focus:outline-none focus:border-purple-500 focus:bg-white transition-all appearance-none"
+                >
+                  <option value="">-- Select your relationship --</option>
+                  <option value="Father">👨 Father</option>
+                  <option value="Mother">👩 Mother</option>
+                  <option value="Grandfather">👴 Grandfather</option>
+                  <option value="Grandmother">👵 Grandmother</option>
+                  <option value="Uncle">🧔 Uncle</option>
+                  <option value="Aunt">👩 Aunt</option>
+                  <option value="Legal Guardian">🛡️ Legal Guardian</option>
+                  <option value="Foster Parent">🏠 Foster Parent</option>
+                  <option value="Sibling">🧑 Sibling</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
             </div>
 

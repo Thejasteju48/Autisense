@@ -30,6 +30,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  city: {
+    type: String,
+    trim: true
+  },
+  state: {
+    type: String,
+    trim: true
+  },
+  country: {
+    type: String,
+    trim: true
+  },
+  relationshipToChild: {
+    type: String,
+    trim: true,
+    enum: ['Father', 'Mother', 'Grandfather', 'Grandmother', 'Uncle', 'Aunt', 'Legal Guardian', 'Foster Parent', 'Sibling', 'Other']
+  },
   createdAt: {
     type: Date,
     default: Date.now

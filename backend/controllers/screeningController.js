@@ -244,9 +244,9 @@ exports.completeScreening = async (req, res) => {
     let finalScore, riskLevel, interpretation;
     
     if (videoScore !== null) {
-      // Combine: 60% questionnaire (more reliable), 40% video-derived score
+      // Combine: 50% questionnaire, 50% video-derived score
       // Note: questionnairePrediction.probability is already a percentage (0-100)
-      finalScore = (questionnairePrediction.probability * 0.6) + (videoScore * 0.4);
+      finalScore = (questionnairePrediction.probability * 0.5) + (videoScore * 0.5);
       
       // Determine combined risk level
       if (finalScore < 30) {
@@ -275,6 +275,8 @@ exports.completeScreening = async (req, res) => {
     // Store the ML-predicted questionnaire score (not the simple yes/no ratio)
     // Note: probability is already a percentage (0-100)
     screening.mlQuestionnaireScore = questionnairePrediction.probability;
+    // Store the video analysis score separately
+    screening.videoScore = videoScore || 0;
     screening.interpretation = {
       summary: interpretation,
       confidence: questionnairePrediction.confidence || 0.85,
@@ -319,6 +321,7 @@ exports.completeScreening = async (req, res) => {
         finalScore: screening.finalScore,
         riskLevel: screening.riskLevel,
         mlQuestionnaireScore: screening.mlQuestionnaireScore,
+        videoScore: screening.videoScore,
         interpretation: screening.interpretation,
         liveVideoFeatures: screening.liveVideoFeatures,
         completedAt: screening.completedAt,
@@ -345,8 +348,8 @@ exports.getScreening = async (req, res) => {
       user: req.user._id 
     })
     .populate('child', 'name nickname dateOfBirth profileImage ageInMonths gender')
-    .populate('user', 'name email')
-    .select('finalScore riskLevel mlQuestionnaireScore liveVideoFeatures questionnaire interpretation completedAt');
+    .populate('user', 'name email city state country')
+    .select('finalScore riskLevel mlQuestionnaireScore videoScore liveVideoFeatures questionnaire interpretation completedAt');
 
     if (!screening) {
       return res.status(404).json({ message: 'Screening not found' });
@@ -427,50 +430,75 @@ exports.getAllUserScreenings = async (req, res) => {
 // @access  Private
 exports.generateReport = async (req, res) => {
   try {
-    // PDF download temporarily disabled
-    return res.status(503).json({ 
-      message: 'PDF download service is temporarily unavailable. Please check back later.',
-      error: 'SERVICE_DISABLED' 
-    });
-    
-    // Original code commented out for future re-enablement:
-    /*
-    const screening = await Screening.findOne({ 
-      _id: req.params.id, 
-      user: req.user._id 
+    const screening = await Screening.findOne({
+      _id: req.params.id,
+      user: req.user._id
     })
-    .populate('child', 'name nickname dateOfBirth')
-    .populate('user', 'name email');
+      .populate('child', 'name nickname dateOfBirth ageInMonths gender')
+      .populate('user', 'name email city state country');
 
     if (!screening) {
-      return res.status(404).json({ message: 'Screening not found' });
+      return res.status(404).json({ success: false, message: 'Screening not found' });
     }
 
     if (screening.status !== 'completed') {
-      return res.status(400).json({ message: 'Screening is not completed yet' });
+      return res.status(400).json({ success: false, message: 'Screening is not completed yet' });
     }
 
-    // Populate child details
-    await screening.populate('child');
+    const groqService   = require('../services/groqService');
+    const pdfService    = require('../services/pdfService');
+    const placesService = require('../services/placesService');
 
-    // Generate PDF report with LLM analysis
-    const pdfService = require('../services/pdfService');
-    const llmAnalysis = screening.interpretation?.llmAnalysis || null;
-    
-    const reportPath = await pdfService.generateScreeningReport(screening, llmAnalysis);
+    // 1. Generate per-indicator AI explanations (parallel with places lookup)
+    const [indicatorExplanations, nearbyCenters] = await Promise.all([
+      screening.liveVideoFeatures
+        ? groqService.generateIndicatorExplanations(screening.liveVideoFeatures).catch(() => ({}))
+        : Promise.resolve({}),
+      placesService.getNearbyAutismCenters(
+        screening.user?.city,
+        screening.user?.state,
+        screening.user?.country
+      ).catch(() => []),
+    ]);
 
+    // 2. Use stored LLM analysis or generate a fresh one
+    let llmAnalysis = screening.interpretation?.llmAnalysis || null;
+    if (!llmAnalysis) {
+      try {
+        const result = await groqService.generateScreeningAnalysis({
+          finalScore: screening.finalScore,
+          riskLevel:  screening.riskLevel,
+          questionnaire: screening.questionnaire,
+          liveVideoFeatures: screening.liveVideoFeatures,
+          child: screening.child,
+        });
+        llmAnalysis = result.analysis;
+      } catch (e) {
+        console.error('Groq LLM failed during report generation:', e.message);
+      }
+    }
+
+    // 3. Build PDF
+    const reportPath = await pdfService.generateScreeningReport(
+      screening,
+      llmAnalysis,
+      indicatorExplanations,
+      nearbyCenters
+    );
+
+    // 4. Persist report path
     screening.reportGenerated = true;
     screening.reportPath = reportPath;
-    await screening.save();
+    await screening.save({ validateBeforeSave: false });
 
-    console.log('✓ PDF report generated:', reportPath);
+    const childName = screening.child?.name || 'child';
+    const dateStr   = new Date().toISOString().split('T')[0];
+    const filename  = `autism-screening-report-${childName}-${dateStr}.pdf`;
 
-    // Send PDF file
-    res.download(reportPath, `screening-report-${screening.child.name}-${new Date().toISOString().split('T')[0]}.pdf`);
-    */
+    res.download(reportPath, filename);
   } catch (error) {
     console.error('Error generating report:', error);
-    res.status(500).json({ message: 'Error generating report' });
+    res.status(500).json({ success: false, message: 'Error generating report', error: error.message });
   }
 };
 

@@ -186,3 +186,48 @@ Keep it clear, supportive, and emphasize next steps.`;
     return `Based on the screening assessment, your child shows a ${riskLevel.toLowerCase()} risk level for autism spectrum disorder. We recommend consulting with a pediatric specialist for further evaluation.`;
   }
 };
+
+/**
+ * Generate short parent-friendly explanations (≤80 words each) for each behavioral indicator.
+ * Returns an object keyed by indicator name.
+ */
+exports.generateIndicatorExplanations = async (liveVideoFeatures) => {
+  const indicators = [
+    { key: 'eyeContact',        label: liveVideoFeatures.eyeContact,        display: 'Eye Contact' },
+    { key: 'headStimming',      label: liveVideoFeatures.headStimming,       display: 'Head Stimming' },
+    { key: 'handStimming',      label: liveVideoFeatures.handStimming,       display: 'Hand Stimming' },
+    { key: 'handGesture',       label: liveVideoFeatures.handGesture,        display: 'Hand Gesture' },
+    { key: 'socialReciprocity', label: liveVideoFeatures.socialReciprocity,  display: 'Social Reciprocity' },
+    { key: 'emotionVariation',  label: liveVideoFeatures.emotionVariation,   display: 'Emotion Variation' },
+  ];
+
+  const results = {};
+  const fallbacks = {
+    eyeContact:        'Eye contact is an important part of social communication. The screening measured how consistently the child looked toward the camera during the session.',
+    headStimming:      'Head stimming refers to repetitive head movements (rocking or shaking). The screening analyzed movement patterns to determine if such behaviors were present.',
+    handStimming:      'Hand stimming includes repetitive flapping or wringing motions. The screening tracked hand movement frequency and pattern to detect these behaviors.',
+    handGesture:       'Communicative hand gestures such as waving, pointing, or reaching show social intent. The screening checked whether the child used such purposeful gestures.',
+    socialReciprocity: 'Social reciprocity is the ability to engage and respond to others. The screening assessed body orientation and interaction cues during the session.',
+    emotionVariation:  'Emotion variation reflects the range of facial expressions a child shows. The screening measured whether the child displayed a healthy diversity of expressions.',
+  };
+
+  for (const item of indicators) {
+    try {
+      const prompt = `Explain the autism behavioral screening indicator "${item.display}" (result observed: "${item.label}") to parents in simple, compassionate medical language. Keep the explanation under 80 words. Focus on what this indicator means, why it is relevant for autism screening, and what the observed result suggests.`;
+
+      const response = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.3,
+        max_tokens: 150,
+      });
+
+      results[item.key] = response.choices[0].message.content.trim();
+    } catch (err) {
+      console.error(`Groq explanation error for ${item.key}:`, err.message);
+      results[item.key] = fallbacks[item.key];
+    }
+  }
+
+  return results;
+};

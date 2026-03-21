@@ -1,8 +1,8 @@
 # Autisense - Autism Screening System
 
-**An Intelligent AI-Powered System for Early Detection of Autism in Children (12-72 months)**
+**An Intelligent AI-Powered System for Early Detection of Autism in Children (16-48 months)**
 
-A comprehensive full-stack application combining **M-CHAT-R validated questionnaire** (60%) with **AI-powered video behavior analysis** (40%) to provide accurate, evidence-based autism screening for early intervention.
+A comprehensive full-stack application combining **M-CHAT-R validated questionnaire** (50%) with **AI-powered video behavior analysis** (50%) to provide accurate, evidence-based autism screening for early intervention.
 
 ## ⚠️ Important Disclaimer
 
@@ -16,13 +16,13 @@ A comprehensive full-stack application combining **M-CHAT-R validated questionna
 
 Autisense is a **dual-assessment screening system** that:
 
-1. **First Assessment (60% weight)**: M-CHAT-R™ 
+1. **First Assessment (50% weight)**: M-CHAT-R™ 
    - 20-item validated parent questionnaire (DSM-5 aligned)
    - Clinically proven 91% sensitivity for autism detection
    - Reverse-coded questions (Q2, Q5, Q12) for accuracy
    - ML-powered probability calculation
 
-2. **Second Assessment (40% weight)**: AI Video Analysis
+2. **Second Assessment (50% weight)**: AI Video Analysis
    - Real-time detection of 6 behavioral markers
    - MediaPipe-based computer vision (468 facial landmarks, 21 hand landmarks, 33 body landmarks)
    - Stereotype behavior detection
@@ -82,7 +82,7 @@ Autisense is a **dual-assessment screening system** that:
 
 ## 📊 Assessment Methodology
 
-### M-CHAT-R™ Questionnaire (60% Weight)
+### M-CHAT-R™ Questionnaire (50% Weight)
 
 **20 yes/no questions** based on Modified Checklist for Autism in Toddlers - Revised
 
@@ -102,7 +102,7 @@ Autisense is a **dual-assessment screening system** that:
 - Standard questions: NO = concern (encoded as 1)
 - ML ensemble predicts probability (0-100%)
 
-### Video Analysis (40% Weight)
+### Video Analysis (50% Weight)
 
 **6 Behavioral Markers** detected via MediaPipe:
 
@@ -376,7 +376,7 @@ GET /api/screenings/:screeningId
 {
   "mlQuestionnaireScore": 75,        // 0-100%
   "videoScore": 65,                   // 0-100%
-  "finalScore": 71.5,                 // 60% × 75 + 40% × 65
+  "finalScore": 70,                   // 50% × 75 + 50% × 65
   "riskLevel": "High",                // ≥70%
   "interpretation": { ... },          // LLM-generated
   "videoFeatures": { ... }            // 6 markers breakdown
@@ -416,7 +416,7 @@ GET /api/screenings/:screeningId
 
 1. **Home Page**
    - Project overview
-   - 60% questionnaire + 40% video explanation
+   - 50% questionnaire + 50% video explanation
    - Call-to-action for screening
 
 2. **Authentication**

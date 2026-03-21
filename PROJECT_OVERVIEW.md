@@ -28,7 +28,7 @@
 **Autisense** - Intelligent Autism Screening System
 
 ### Vision
-Enable early detection of autism spectrum disorder in toddlers (12-72 months) through accessible, evidence-based dual assessment combining clinical questionnaire with AI-powered behavioral analysis.
+Enable early detection of autism spectrum disorder in toddlers (16-48 months) through accessible, evidence-based dual assessment combining clinical questionnaire with AI-powered behavioral analysis.
 
 ### Key Metrics
 - **Assessment Duration**: 15-20 minutes per child
@@ -77,7 +77,7 @@ Enable early detection of autism spectrum disorder in toddlers (12-72 months) th
 
 ### Dual Assessment Approach
 
-**Component 1: M-CHAT-R Questionnaire (60% weight)**
+**Component 1: M-CHAT-R Questionnaire (50% weight)**
 - 20-item parent questionnaire
 - Clinically validated by autism researchers
 - Covers 5 developmental domains
@@ -85,7 +85,7 @@ Enable early detection of autism spectrum disorder in toddlers (12-72 months) th
 - ML ensemble prediction model
 - Sensitivity: 91% | Specificity: 98%
 
-**Component 2: AI Video Analysis (40% weight)**
+**Component 2: AI Video Analysis (50% weight)**
 - Real-time behavioral marker detection
 - 6 key markers: eye contact, head/hand stimming, gestures, reciprocity, emotion
 - MediaPipe framework (Google's research)
@@ -95,7 +95,7 @@ Enable early detection of autism spectrum disorder in toddlers (12-72 months) th
 
 **Final Assessment**
 ```
-Final Risk Score = (Questionnaire Score × 0.60) + (Video Score × 0.40)
+Final Risk Score = (Questionnaire Score × 0.50) + (Video Score × 0.50)
 
 Risk Categories:
 - Low: 0-39% (minimal concern)
@@ -146,7 +146,7 @@ Risk Categories:
 │  │ │         - Call video analyzer service                  │   │   │
 │  │ │         - Extract 6 behavioral markers                 │   │   │
 │  │ │ Step 4: Generate Final Assessment                      │   │   │
-│  │ │         - Combine scores (60/40 weighting)             │   │   │
+│  │ │         - Combine scores (50/50 weighting)             │   │   │
 │  │ │         - Call LLM for interpretation                  │   │   │
 │  │ │         - Generate PDF report                          │   │   │
 │  │ │         - Store complete results in database           │   │   │
@@ -278,7 +278,7 @@ Risk Categories:
    Backend stores: videoFeatures, videoScore in DB
 
 6. BACKEND CALCULATES FINAL SCORE
-   finalScore = (questionnaire × 0.60) + (video × 0.40)
+   finalScore = (questionnaire × 0.50) + (video × 0.50)
    riskLevel = classify(finalScore)
 
 7. BACKEND GENERATES INTERPRETATION
@@ -307,7 +307,7 @@ Risk Categories:
 - **Official Name**: Modified Checklist for Autism in Toddlers, Revised
 - **Developer**: Diana Robins, Ph.D., Deborah Fein, Ph.D., Marianne Barton, MS
 - **Year Developed**: 2009 (Original), 2014 (Revised)
-- **Age Target**: 16-30 months, extended to 12-72 months
+- **Age Target**: 16-48 months
 - **Validation**: Multiple peer-reviewed studies
 - **Sensitivity**: 91% | **Specificity**: 98%
 
@@ -1069,7 +1069,7 @@ function ScreeningFlow() {
   totalFrames: Number,
   
   // Final Results
-  finalScore: Number, // 0-100 (60% quest + 40% video)
+  finalScore: Number, // 0-100 (50% quest + 50% video)
   riskLevel: String, // 'Low' (<40), 'Moderate' (40-70), 'High' (≥70)
   
   // LLM Interpretation
@@ -1289,7 +1289,7 @@ spec:
 
 ### Key Limitations:
 1. **Video Quality**: Depends on lighting, camera, internet
-2. **Age Range**: Designed for 12-72 months
+2. **Age Range**: Designed for 16-48 months
 3. **Language**: Currently English only
 4. **Accuracy**: 88-93% accuracy rates on markers
 5. **Environmental Factors**: Home screening may miss clinical context

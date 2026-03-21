@@ -99,7 +99,7 @@ const Dashboard = () => {
                   <span className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
                   <h4 className="font-semibold text-gray-900">Add Child Profile</h4>
                 </div>
-                <p className="text-sm text-gray-600 ml-8">Enter basic info: name, age (12-72 months), gender</p>
+                <p className="text-sm text-gray-600 ml-8">Enter basic info: name, age (16-48 months), gender</p>
               </div>
               <div className="bg-white p-4 rounded-lg border border-purple-200">
                 <div className="flex items-center mb-2">
