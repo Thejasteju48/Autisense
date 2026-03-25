@@ -46,41 +46,71 @@ Autisense is a **dual-assessment screening system** that:
 │   - M-CHAT-R questionnaire UI            │
 │   - Real-time video recording/upload     │
 │   - Results dashboard & history          │
+│   - Parent Guidance Chat (RAG)            │
 └────────────────┬────────────────────────┘
                  │ HTTP/REST (Axios)
                  ▼
 ┌─────────────────────────────────────────┐
-│   Express Backend (Port 5001)            │
+│   Express Backend (Port 5000)            │
 │   - JWT authentication                   │
 │   - MongoDB database (users, children)   │
 │   - Screening orchestration              │
 │   - PDF report generation                │
+│   - Chat orchestration + report upload    │
 └────────────────┬────────────────────────┘
-                 │ HTTP Calls
-    ┌────────────┴────────────┐
-    ▼                         ▼
-┌─────────────────────┐  ┌─────────────────────┐
-│  ML Service (8000)  │  │ Emotion Service(8001)│
-│  - Video Analysis   │  │ - Facial Expressions│
-│  - 6 Markers        │  │ - Emotion Detection │
-│  - Questionnaire ML │  │ - Variation Analysis│
-│  - MediaPipe        │  │ - PyTorch Models    │
-└─────────┬───────────┘  └──────────┬──────────┘
-          │ FastAPI                 │ FastAPI
-          └────────────┬────────────┘
-                       ▼
-          ┌─────────────────────────┐
-          │  MongoDB (Database)      │
-          │  - Users & auth          │
-          │  - Child profiles        │
-          │  - Screening results     │
-          │  - Assessment history    │
-          └─────────────────────────┘
+             │ HTTP Calls
+   ┌────────────┼────────────┬────────────┐
+   ▼            ▼            ▼            ▼
+┌─────────────────────┐  ┌─────────────────────┐  ┌──────────────────────────┐
+│  ML Service (8000)  │  │ Emotion Service(8001)│  │ RAG Service (FastAPI 8002)│
+│  - Video Analysis   │  │ - Facial Expressions│  │ - ChromaDB vector store   │
+│  - 6 Markers        │  │ - Emotion Detection │  │ - Sentence embeddings     │
+│  - Questionnaire ML │  │ - Variation Analysis│  │ - Groq LLM generation     │
+│  - MediaPipe        │  │ - PyTorch Models    │  │ - Strict anti-hallucinate │
+└─────────┬───────────┘  └──────────┬──────────┘  └───────────┬──────────────┘
+        │ FastAPI                 │ FastAPI                │ FastAPI
+        └────────────┬────────────┴────────────┬───────────┘
+                  ▼                         ▼
+        ┌─────────────────────────┐   ┌──────────────────────────────┐
+        │  MongoDB (Database)      │   │ ChromaDB Persistent Storage   │
+        │  - Users & auth          │   │ - Embedded report chunks      │
+        │  - Child profiles        │   │ - Per-screening collections   │
+        │  - Screening results     │   └──────────────────────────────┘
+        │  - Assessment history    │
+        └─────────────────────────┘
 ```
 
 ---
 
 ## 📊 Assessment Methodology
+
+---
+
+## 💬 Parent Guidance Chat (RAG Assistant)
+
+The project includes a **RAG (Retrieval-Augmented Generation) chatbot** used in the "Parent Guidance Chat" page.
+
+**What it does**
+- Answers questions using **System Data** (risk level + indicators from screening)
+- Optionally uses an uploaded **PDF medical report** (after indexing) for additional context
+- Uses strict rules to avoid hallucinating report content when no report chunks are retrieved
+
+**RAG tech stack**
+- API: FastAPI (service runs on port **8002**)
+- Vector DB: ChromaDB (persistent storage on disk)
+- Embeddings: `sentence-transformers` (MiniLM) + cosine similarity
+- PDF chunking: LangChain `PyPDFLoader` + `RecursiveCharacterTextSplitter`
+- LLM: Groq (model configurable via `GROQ_MODEL`)
+
+**Key endpoints**
+- `POST /chat` — answer a user question
+- `POST /rag/index` — index a PDF from a local path (used by the backend after upload)
+- `GET /health` — configuration health check
+
+**Security note (important for GitHub)**
+- Real secrets (MongoDB URI, Groq key, etc.) must stay in local `.env` files.
+- `.env` files are ignored by git via `.gitignore` and **should not be committed**.
+- Use the provided `.env.example` files to document required variables.
 
 ### M-CHAT-R™ Questionnaire (50% Weight)
 
@@ -148,7 +178,7 @@ Autisense/
 ├── QUESTIONNAIRE_REFERENCE.md         # M-CHAT-R full reference
 ├── requirements.txt                   # Python dependencies
 │
-├── backend/                           # Node.js Express Server (Port 5001)
+├── backend/                           # Node.js Express Server (Port 5000)
 │   ├── controllers/
 │   │   ├── authController.js         # User registration, login, JWT
 │   │   └── screeningController.js    # 4-step screening workflow
@@ -249,7 +279,7 @@ CP .env.example .env
 # Edit: MONGODB_URI, JWT_SECRET, GROQ_API_KEY
 
 npm run dev
-# Runs on http://localhost:5001
+# Runs on http://localhost:5000
 ```
 
 ### 3. ML Service Setup

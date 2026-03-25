@@ -1,6 +1,6 @@
 const placesService = require('../services/placesService');
 
-// @desc    Get nearby autism-related centers using OSM
+// @desc    Get nearby autism-related centers using SerpAPI
 // @route   GET /api/centers?city=Bangalore&state=Karnataka&country=India
 // @access  Private
 exports.getCenters = async (req, res) => {
@@ -16,7 +16,7 @@ exports.getCenters = async (req, res) => {
       });
     }
 
-    const centers = await placesService.getNearbyAutismCenters(city, state, country, 5);
+    const centers = await placesService.getNearbyAutismCenters(city, state, country, 3);
 
     return res.json({
       success: true,
@@ -25,6 +25,7 @@ exports.getCenters = async (req, res) => {
         state,
         country,
         count: centers.length,
+        source: 'SerpAPI',
         centers
       }
     });

@@ -11,14 +11,15 @@ const authRoutes = require('./routes/authRoutes');
 const childRoutes = require('./routes/childRoutes');
 const screeningRoutes = require('./routes/screeningRoutes');
 const centersRoutes = require('./routes/centersRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? 'https://your-production-domain.com' 
-    : 'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production'
+    ? 'https://your-production-domain.com'
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for video frames
@@ -32,6 +33,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/children', childRoutes);
 app.use('/api/screenings', screeningRoutes);
 app.use('/api/centers', centersRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/video', require('./routes/videoProcessingRoutes'));
 
 // Health check

@@ -68,3 +68,7 @@ models/*.pkl
 reports/
 backend/reports/
 *.pdf
+
+# Local vector DB (Chroma) - derived from uploaded reports
+chroma_db/
+rag-service/chroma_db/

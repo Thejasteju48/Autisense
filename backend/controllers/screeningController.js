@@ -461,21 +461,24 @@ exports.generateReport = async (req, res) => {
       ).catch(() => []),
     ]);
 
-    // 2. Use stored LLM analysis or generate a fresh one
-    let llmAnalysis = screening.interpretation?.llmAnalysis || null;
-    if (!llmAnalysis) {
-      try {
-        const result = await groqService.generateScreeningAnalysis({
-          finalScore: screening.finalScore,
-          riskLevel:  screening.riskLevel,
-          questionnaire: screening.questionnaire,
-          liveVideoFeatures: screening.liveVideoFeatures,
-          child: screening.child,
-        });
-        llmAnalysis = result.analysis;
-      } catch (e) {
-        console.error('Groq LLM failed during report generation:', e.message);
-      }
+    // 2. Generate fresh LLM analysis for standardized report formatting.
+    // Fallback to stored analysis only if fresh generation fails.
+    let llmAnalysis = null;
+    try {
+      const result = await groqService.generateScreeningAnalysis({
+        finalScore: screening.finalScore,
+        riskLevel: screening.riskLevel,
+        questionnaire: screening.questionnaire,
+        liveVideoFeatures: screening.liveVideoFeatures,
+        child: screening.child,
+      });
+      llmAnalysis = result.analysis;
+
+      if (!screening.interpretation) screening.interpretation = {};
+      screening.interpretation.llmAnalysis = llmAnalysis;
+    } catch (e) {
+      console.error('Groq LLM failed during report generation:', e.message);
+      llmAnalysis = screening.interpretation?.llmAnalysis || null;
     }
 
     // 3. Build PDF

@@ -1,0 +1,29 @@
+fastapi==0.95.2
+uvicorn==0.22.0
+pydantic==1.10.13
+python-multipart==0.0.6
+python-dotenv==1.0.0
+
+# Keep pip tooling compatible with langchain-core's packaging<24 constraint
+packaging==23.2
+wheel==0.45.1
+
+# RAG
+chromadb==0.4.24
+posthog==3.5.0
+sentence-transformers==2.2.2
+langchain==0.1.0
+
+# langchain==0.1.0 requires numpy<2
+numpy==1.26.4
+
+# sentence-transformers==2.2.2 imports huggingface_hub.cached_download (removed in 1.x)
+huggingface-hub==0.14.1
+transformers==4.30.2
+tokenizers==0.13.3
+
+# PDF loading + splitting
+langchain-community==0.0.13
+pypdf==4.2.0
+
+groq

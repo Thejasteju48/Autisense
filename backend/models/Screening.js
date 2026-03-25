@@ -149,6 +149,7 @@ const screeningSchema = new mongoose.Schema({
     default: false
   },
   reportPath: String,
+  uploadedReportPath: String,
   
   // Status
   status: {

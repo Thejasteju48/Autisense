@@ -10,6 +10,7 @@ import ChildProfile from './pages/ChildProfile';
 import AddChild from './pages/AddChild';
 import ScreeningFlow from './pages/ScreeningFlow';
 import ScreeningResults from './pages/ScreeningResults';
+import ChatAssistant from './pages/ChatAssistant';
 import History from './pages/History';
 import AllScreeningsHistory from './pages/AllScreeningsHistory';
 
@@ -41,6 +42,7 @@ function App() {
         <Route path="children/:id" element={<ChildProfile />} />
         <Route path="screening/:childId" element={<ScreeningFlow />} />
         <Route path="screening/:screeningId/results" element={<ScreeningResults />} />
+        <Route path="screening/:screeningId/chat" element={<ChatAssistant />} />
         <Route path="history/:childId" element={<History />} />
         <Route path="all-history" element={<AllScreeningsHistory />} />
       </Route>

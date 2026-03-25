@@ -30,296 +30,341 @@ exports.generateScreeningReport = async (screening, llmAnalysis, indicatorExplan
       const writeStream = fs.createWriteStream(filepath);
       doc.pipe(writeStream);
 
-      // ── Colour palette ──────────────────────────────────────────────────────
       const C = {
-        primary:   '#4C1D95',   // deep purple header
-        accent:    '#7C3AED',   // section rule colour
-        riskLow:   '#065F46',   // dark green
-        riskMod:   '#92400E',   // amber
-        riskHigh:  '#991B1B',   // red
-        bgLow:     '#D1FAE5',
-        bgMod:     '#FEF3C7',
-        bgHigh:    '#FEE2E2',
-        ink:       '#1F2937',
-        muted:     '#6B7280',
-        rule:      '#E5E7EB',
-        white:     '#FFFFFF',
+        heading: '#111827',
+        text: '#1F2937',
+        line: '#D1D5DB',
+        muted: '#4B5563',
+        headerBg: '#F3F4F6',
       };
 
-      const riskColor  = screening.riskLevel === 'Low' ? C.riskLow  : screening.riskLevel === 'Moderate' ? C.riskMod  : C.riskHigh;
-      const riskBg     = screening.riskLevel === 'Low' ? C.bgLow    : screening.riskLevel === 'Moderate' ? C.bgMod    : C.bgHigh;
+      const W = doc.page.width - 100;
+      const LM = 50;
+      const TOP = 45;
+      const BOTTOM = doc.page.height - 70;
 
-      // ── Helper utilities ─────────────────────────────────────────────────────
-      const fmt = (v) => {
-        if (v === null || v === undefined || v === '') return 'N/A';
-        return String(v);
-      };
+      const fmt = (v) => (v === null || v === undefined || v === '' ? 'N/A' : String(v));
+      const clean = (v) => fmt(v).replace(/\s+/g, ' ').trim();
+      const cleanMultiline = (v) => fmt(v).replace(/\r/g, '').replace(/\t/g, ' ').trim();
       const fmtDate = (v) => {
         if (!v) return 'N/A';
         const d = new Date(v);
         return isNaN(d) ? 'N/A' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       };
 
-      const W  = doc.page.width  - 100;   // usable width (l+r margin = 100)
-      const LM = 50;                       // left margin
-
-      // Draw a horizontal rule
-      const rule = (y) => {
-        doc.strokeColor(C.rule).lineWidth(0.5).moveTo(LM, y || doc.y).lineTo(LM + W, y || doc.y).stroke();
+      const toSentence = (v) => {
+        const text = clean(v);
+        if (text === 'N/A') return text;
+        return text.charAt(0).toUpperCase() + text.slice(1);
       };
 
-      // Section heading (e.g. "SECTION 1 – CHILD INFORMATION")
-      const sectionHead = (text) => {
-        doc.moveDown(0.6);
+      const indicatorConcern = (key, value) => {
+        const val = clean(value).toLowerCase();
+        if (val === 'n/a') return 'Not Assessed';
+
+        const concernByKey = {
+          eyeContact: ['low', 'reduced', 'limited', 'poor'],
+          headStimming: ['present', 'high', 'frequent'],
+          handStimming: ['present', 'high', 'frequent'],
+          handGesture: ['absent', 'limited', 'low'],
+          socialReciprocity: ['low', 'reduced', 'limited'],
+          emotionVariation: ['low', 'limited', 'restricted'],
+        };
+
+        const markers = concernByKey[key] || [];
+        if (markers.some((m) => val.includes(m))) return 'Needs Follow-up';
+        return 'Within Expected Range';
+      };
+
+      const summarizeLLM = (text, maxChars = 1200) => {
+        if (!text) return null;
+        const normalized = cleanMultiline(text).replace(/\*\*/g, '').replace(/^[-•]\s*/gm, '');
+        if (normalized.length <= maxChars) return normalized;
+        return `${normalized.slice(0, maxChars).trim()}...`;
+      };
+
+      const addHeader = () => {
+        doc.y = TOP;
+        doc.fillColor(C.heading).font('Helvetica-Bold').fontSize(17)
+          .text('AUTISM SCREENING REPORT', LM, doc.y, { width: W, align: 'center' });
+        doc.moveDown(0.2);
+        doc.fillColor(C.muted).font('Helvetica').fontSize(9)
+          .text(`Generated on ${fmtDate(new Date())}`, LM, doc.y, { width: W, align: 'center' });
+        doc.moveDown(0.4);
+        doc.strokeColor(C.line).lineWidth(0.7).moveTo(LM, doc.y).lineTo(LM + W, doc.y).stroke();
+        doc.moveDown(0.5);
+      };
+
+      const ensureSpace = (h = 30) => {
+        if (doc.y + h > BOTTOM) {
+          doc.addPage();
+          addHeader();
+        }
+      };
+
+      const sectionTitle = (title) => {
+        ensureSpace(24);
+        doc.fillColor(C.heading).font('Helvetica-Bold').fontSize(11)
+          .text(title, LM, doc.y, { width: W });
+        doc.moveDown(0.2);
+      };
+
+      const keyValueBlock = (rows) => {
+        rows.forEach(([label, value]) => {
+          ensureSpace(16);
+          doc.fillColor(C.text).font('Helvetica-Bold').fontSize(10)
+            .text(`${clean(label)}: `, LM, doc.y, { continued: true });
+          doc.fillColor(C.text).font('Helvetica').fontSize(10)
+            .text(clean(value), { width: W, align: 'left' });
+        });
+        doc.moveDown(0.35);
+      };
+
+      const setTableFont = (isHeader) => {
+        doc.font(isHeader ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.2);
+      };
+
+      const cellHeight = (text, width, isHeader = false) => {
+        setTableFont(isHeader);
+        return doc.heightOfString(clean(text), {
+          width: Math.max(20, width - 12),
+          align: 'left',
+          lineGap: 1,
+        }) + 10;
+      };
+
+      const drawRow = (cells, widths, isHeader = false) => {
+        const heights = cells.map((cell, i) => cellHeight(cell, widths[i], isHeader));
+        const rowHeight = Math.max(22, ...heights);
+        ensureSpace(rowHeight + 2);
+
+        let x = LM;
         const y = doc.y;
-        doc.rect(LM, y, W, 22).fill(C.accent);
-        doc.fillColor(C.white).font('Helvetica-Bold').fontSize(10)
-           .text(text, LM + 10, y + 6, { width: W - 20, lineBreak: false });
-        doc.moveDown(1.1);
-        doc.fillColor(C.ink).font('Helvetica').fontSize(10);
+
+        cells.forEach((cell, i) => {
+          const cw = widths[i];
+          if (isHeader) {
+            doc.rect(x, y, cw, rowHeight).fillAndStroke(C.headerBg, C.line);
+          } else {
+            doc.rect(x, y, cw, rowHeight).stroke(C.line);
+          }
+
+          setTableFont(isHeader);
+          doc.fillColor(C.text).text(clean(cell), x + 6, y + 5, {
+            width: cw - 12,
+            align: 'left',
+            lineGap: 1,
+          });
+          x += cw;
+        });
+
+        doc.y = y + rowHeight;
       };
 
-      // Key-value row
-      const kv = (label, value, bold = false) => {
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(C.muted)
-           .text(`${label}:`, LM, doc.y, { continued: true, width: 160 });
-        doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(10).fillColor(C.ink)
-           .text(`  ${fmt(value)}`);
+      const drawTable = (headers, rows, widths) => {
+        drawRow(headers, widths, true);
+        rows.forEach((row) => drawRow(row, widths, false));
+        doc.moveDown(0.4);
       };
 
-      // ── PAGE 1 ───────────────────────────────────────────────────────────────
+      const observationMap = {
+        eyeContact: {
+          typical: 'Maintains eye contact during interaction',
+          pattern: 'Avoids or shows limited eye contact',
+        },
+        handStimming: {
+          typical: 'Minimal repetitive hand movement',
+          pattern: 'Repetitive hand movements or stimming',
+        },
+        socialReciprocity: {
+          typical: 'Responds actively to social cues',
+          pattern: 'Reduced social response and reciprocity',
+        },
+        emotionVariation: {
+          typical: 'Shows varied emotional expressions',
+          pattern: 'Restricted or limited expression range',
+        },
+      };
 
-      // ── HEADER BANNER ────────────────────────────────────────────────────────
-      doc.rect(0, 0, doc.page.width, 80).fill(C.primary);
+      const features = screening.liveVideoFeatures || {};
+      const riskLevel = clean(screening.riskLevel);
+      const questionnaireResponses = screening?.questionnaire?.responses || [];
+      const concernResponses = questionnaireResponses.filter((r) => r && r.answer === false).slice(0, 6);
 
-      doc.fillColor(C.white).font('Helvetica-Bold').fontSize(22)
-         .text('AUTISENSE', LM, 18, { lineBreak: false });
-      doc.fillColor('#DDD6FE').font('Helvetica').fontSize(11)
-         .text('AI-Powered Autism Screening System', LM, 44, { lineBreak: false });
-
-      // Right side: report meta
-      doc.fillColor(C.white).font('Helvetica-Bold').fontSize(9)
-         .text('AUTISM SCREENING REPORT', LM, 22, { align: 'right', width: W });
-      doc.fillColor('#DDD6FE').font('Helvetica').fontSize(8)
-         .text(`Report Date: ${fmtDate(new Date())}`, LM, 35, { align: 'right', width: W })
-         .text(`Report ID: ${screening._id}`, LM, 47, { align: 'right', width: W });
-
-      doc.moveDown(4.5);
-
-      // ── DIVIDER LINE ─────────────────────────────────────────────────────────
-      rule();
-      doc.moveDown(0.6);
-
-      // ── SECTION 1 – CHILD INFORMATION ───────────────────────────────────────
-      sectionHead('SECTION 1  –  CHILD INFORMATION');
-
-      const childAge   = Math.floor(screening.child.ageInMonths / 12);
-      const childMonth = screening.child.ageInMonths % 12;
-      const ageStr     = childAge > 0
-        ? `${childAge} year${childAge > 1 ? 's' : ''} ${childMonth} month${childMonth !== 1 ? 's' : ''} (${screening.child.ageInMonths} months)`
-        : `${childMonth} month${childMonth !== 1 ? 's' : ''} (${screening.child.ageInMonths} months)`;
-
-      kv('Child Name',      screening.child.name || screening.child.nickname);
-      kv('Age',             ageStr);
-      kv('Gender',          screening.child.gender ? screening.child.gender.charAt(0).toUpperCase() + screening.child.gender.slice(1) : 'N/A');
-      kv('Date of Birth',   fmtDate(screening.child.dateOfBirth));
-      kv('Screening Date',  fmtDate(screening.createdAt));
-      doc.moveDown(0.4);
-
-      // ── SECTION 2 – PARENT INFORMATION ──────────────────────────────────────
-      sectionHead('SECTION 2  –  PARENT / GUARDIAN INFORMATION');
-
-      kv('Parent Name',    screening.user?.name);
-      kv('Email',          screening.user?.email);
-      kv('City',           screening.user?.city);
-      kv('State',          screening.user?.state);
-      kv('Country',        screening.user?.country);
-      doc.moveDown(0.4);
-
-      // ── SECTION 3 – SCREENING SUMMARY ───────────────────────────────────────
-      sectionHead('SECTION 3  –  SCREENING SUMMARY');
-
-      // Score box
-      const boxY  = doc.y;
-      const bW    = (W - 10) / 3;
-      const bH    = 58;
-      const labelY = boxY + 8;
-      const valY   = boxY + 22;
-
-      // Questionnaire box
-      doc.rect(LM, boxY, bW, bH).fillAndStroke('#EDE9FE', C.rule);
-      doc.fillColor(C.muted).font('Helvetica-Bold').fontSize(8.5)
-         .text('QUESTIONNAIRE SCORE', LM + 6, labelY, { width: bW - 12, align: 'center' });
-      doc.fillColor(C.accent).font('Helvetica-Bold').fontSize(22)
-         .text(`${Math.round(screening.mlQuestionnaireScore || 0)}`, LM + 6, valY, { width: bW - 12, align: 'center' });
-      doc.fillColor(C.muted).font('Helvetica').fontSize(8)
-         .text('out of 100', LM + 6, valY + 26, { width: bW - 12, align: 'center' });
-
-      // Video box
-      const b2X = LM + bW + 5;
-      doc.rect(b2X, boxY, bW, bH).fillAndStroke('#EFF6FF', C.rule);
-      doc.fillColor(C.muted).font('Helvetica-Bold').fontSize(8.5)
-         .text('VIDEO ANALYSIS SCORE', b2X + 6, labelY, { width: bW - 12, align: 'center' });
-      doc.fillColor('#1D4ED8').font('Helvetica-Bold').fontSize(22)
-         .text(`${Math.round(screening.videoScore || 0)}`, b2X + 6, valY, { width: bW - 12, align: 'center' });
-      doc.fillColor(C.muted).font('Helvetica').fontSize(8)
-         .text('out of 100', b2X + 6, valY + 26, { width: bW - 12, align: 'center' });
-
-      // Risk box
-      const b3X = LM + (bW + 5) * 2;
-      doc.rect(b3X, boxY, bW, bH).fillAndStroke(riskBg, C.rule);
-      doc.fillColor(C.muted).font('Helvetica-Bold').fontSize(8.5)
-         .text('FINAL RISK SCORE', b3X + 6, labelY, { width: bW - 12, align: 'center' });
-      doc.fillColor(riskColor).font('Helvetica-Bold').fontSize(22)
-         .text(`${Math.round(screening.finalScore || 0)}`, b3X + 6, valY, { width: bW - 12, align: 'center' });
-      doc.fillColor(riskColor).font('Helvetica-Bold').fontSize(9)
-         .text(screening.riskLevel + ' Risk', b3X + 6, valY + 26, { width: bW - 12, align: 'center' });
-
-      doc.y = boxY + bH + 12;
-      doc.moveDown(0.3);
-
-      // Risk level badge (text)
-      doc.rect(LM, doc.y, W, 26).fill(riskBg);
-      doc.fillColor(riskColor).font('Helvetica-Bold').fontSize(11)
-         .text(
-           `Risk Level: ${screening.riskLevel.toUpperCase()}  |  Final Score: ${(screening.finalScore || 0).toFixed(1)} / 100  |  50% Questionnaire  +  50% Video Analysis`,
-           LM + 10, doc.y + 7, { width: W - 20, lineBreak: false }
-         );
-      doc.moveDown(1.4);
-
-      // ── SECTION 4 – BEHAVIORAL INDICATORS ───────────────────────────────────
-      sectionHead('SECTION 4  –  BEHAVIORAL INDICATORS  (Video Analysis)');
-
-      const indicators = [
-        { key: 'eyeContact',        label: 'Eye Contact',        icon: '👀' },
-        { key: 'headStimming',      label: 'Head Stimming',      icon: '🔄' },
-        { key: 'handStimming',      label: 'Hand Stimming',      icon: '✋' },
-        { key: 'handGesture',       label: 'Hand Gesture',       icon: '🤲' },
-        { key: 'socialReciprocity', label: 'Social Reciprocity', icon: '🔁' },
-        { key: 'emotionVariation',  label: 'Emotion Variation',  icon: '😊' },
+      const indicatorRows = [
+        {
+          key: 'eyeContact',
+          label: 'Eye Contact',
+          observation: features.eyeContact,
+        },
+        {
+          key: 'headStimming',
+          label: 'Head Movements',
+          observation: features.headStimming,
+        },
+        {
+          key: 'handStimming',
+          label: 'Hand Movements',
+          observation: features.handStimming,
+        },
+        {
+          key: 'handGesture',
+          label: 'Communicative Gestures',
+          observation: features.handGesture,
+        },
+        {
+          key: 'socialReciprocity',
+          label: 'Social Interaction',
+          observation: features.socialReciprocity,
+        },
+        {
+          key: 'emotionVariation',
+          label: 'Emotional Expression',
+          observation: features.emotionVariation,
+        },
       ];
 
-      for (const ind of indicators) {
-        const rawVal = (screening.liveVideoFeatures || {})[ind.key] || 'N/A';
-        const explanation = indicatorExplanations[ind.key] || '';
+      const keyConcerns = indicatorRows
+        .filter((row) => indicatorConcern(row.key, row.observation) === 'Needs Follow-up')
+        .map((row) => row.label);
 
-        // Concern flag
-        const isConcern = ['Low Eye Contact', 'Present', 'Low', 'Absent'].includes(rawVal);
-        const rowBg = isConcern ? '#FFF7F7' : '#F7FFF9';
-        const dotColor = isConcern ? '#EF4444' : '#10B981';
+      addHeader();
 
-        const rowTop  = doc.y;
-        const rowH    = explanation ? Math.max(50, 16 + Math.ceil(explanation.length / 95) * 14) : 36;
+      sectionTitle('Patient Details');
+      keyValueBlock([
+        ['Name', screening.child?.name || screening.child?.nickname],
+        ['Age', `${screening.child?.ageInMonths || 'N/A'} months`],
+        ['Gender', screening.child?.gender],
+        ['Screening Date', fmtDate(screening.createdAt)],
+      ]);
 
-        // Row background
-        doc.rect(LM, rowTop, W, rowH).fillAndStroke(rowBg, C.rule);
+      sectionTitle('Guardian Details');
+      keyValueBlock([
+        ['Parent Name', screening.user?.name],
+        ['Location', [screening.user?.city, screening.user?.state].filter(Boolean).join(', ') || 'N/A'],
+      ]);
 
-        // Status dot
-        doc.circle(LM + 14, rowTop + rowH / 2, 5).fill(dotColor);
+      sectionTitle('Behavioral Assessment');
+      drawTable(
+        ['Indicator', 'Observation', 'Typical Development', 'Autism-Related Pattern'],
+        [
+          ['Eye Contact', features.eyeContact, observationMap.eyeContact.typical, observationMap.eyeContact.pattern],
+          ['Hand Movements', features.handStimming, observationMap.handStimming.typical, observationMap.handStimming.pattern],
+          ['Social Interaction', features.socialReciprocity, observationMap.socialReciprocity.typical, observationMap.socialReciprocity.pattern],
+          ['Emotional Expression', features.emotionVariation, observationMap.emotionVariation.typical, observationMap.emotionVariation.pattern],
+        ],
+        [100, 110, 170, W - 380]
+      );
 
-        // Indicator name
-        doc.fillColor(C.ink).font('Helvetica-Bold').fontSize(10)
-           .text(`${ind.icon}  ${ind.label}`, LM + 24, rowTop + 6, { width: 140, lineBreak: false });
+      sectionTitle('Detailed Behavioral Findings');
+      drawTable(
+        ['Indicator', 'Observed Status', 'Clinical Note', 'Priority'],
+        indicatorRows.map((row) => [
+          row.label,
+          toSentence(row.observation),
+          clean(indicatorExplanations[row.key] || 'Clinical interpretation not available for this indicator.'),
+          indicatorConcern(row.key, row.observation),
+        ]),
+        [110, 95, 220, W - 425]
+      );
 
-        // Result value
-        doc.fillColor(isConcern ? C.riskHigh : C.riskLow).font('Helvetica-Bold').fontSize(10)
-           .text(rawVal, LM + 170, rowTop + 6, { width: 120, lineBreak: false });
+      sectionTitle('Assessment Summary');
+      keyValueBlock([
+        ['Risk Level', riskLevel],
+        ['Indicators Needing Follow-up', keyConcerns.length > 0 ? keyConcerns.join(', ') : 'No major concerns identified from observed indicators'],
+        ['Questionnaire Responses Reviewed', questionnaireResponses.length || 0],
+      ]);
 
-        // AI explanation (right column)
-        if (explanation) {
-          doc.fillColor(C.muted).font('Helvetica').fontSize(8.5)
-             .text(explanation, LM + 295, rowTop + 6, { width: W - 295, lineGap: 2 });
-        }
-
-        doc.y = rowTop + rowH + 3;
-      }
-
-      doc.moveDown(0.6);
-
-      // ── PAGE 2 – AI ANALYSIS ─────────────────────────────────────────────────
-      doc.addPage();
-
-      // Repeat mini-header on page 2
-      doc.rect(0, 0, doc.page.width, 40).fill(C.primary);
-      doc.fillColor(C.white).font('Helvetica-Bold').fontSize(13)
-         .text('AUTISENSE – AUTISM SCREENING REPORT (continued)', LM, 13, { width: W });
-      doc.moveDown(3);
-
-      // ── SECTION 5 – AI GENERATED EXPLANATION ────────────────────────────────
-      sectionHead('SECTION 5  –  AI GENERATED CLINICAL EXPLANATION  (Powered by Groq Llama 3)');
-
-      if (llmAnalysis) {
-        doc.fillColor(C.ink).font('Helvetica').fontSize(9.5)
-           .text(llmAnalysis, LM, doc.y, { width: W, align: 'justify', lineGap: 3 });
-      } else {
-        doc.fillColor(C.muted).font('Helvetica').fontSize(10)
-           .text('AI analysis is not available for this report. Please consult a qualified healthcare professional for detailed interpretation.', LM, doc.y, { width: W, align: 'justify' });
-      }
-
-      doc.moveDown(1.2);
-
-      // ── SECTION 6 – NEARBY AUTISM CENTERS ───────────────────────────────────
-      sectionHead('SECTION 6  –  SUGGESTED NEARBY AUTISM CENTERS');
-
-      const location = [screening.user?.city, screening.user?.state, screening.user?.country]
-        .filter(Boolean).join(', ');
-
-      if (location) {
-        doc.fillColor(C.muted).font('Helvetica').fontSize(9)
-           .text(`Based on your registered location: ${location}`, LM, doc.y);
-        doc.moveDown(0.5);
-      }
-
-      if (nearbyCenters && nearbyCenters.length > 0) {
-        nearbyCenters.forEach((center, i) => {
-          const cY = doc.y;
-               doc.rect(LM, cY, W, 58).fillAndStroke('#F5F3FF', C.rule);
-
-          doc.fillColor(C.accent).font('Helvetica-Bold').fontSize(10)
-             .text(`${i + 1}.  ${center.name}`, LM + 10, cY + 6, { width: W - 20, lineBreak: false });
-          doc.fillColor(C.ink).font('Helvetica').fontSize(9)
-                   .text(`Address: ${center.address}`, LM + 10, cY + 20, { width: W - 20, lineBreak: false });
-          doc.fillColor(C.muted).font('Helvetica').fontSize(9)
-                   .text(`Coordinates: ${center.latitude}, ${center.longitude}`, LM + 10, cY + 34, { width: W - 20, lineBreak: false });
-
-               doc.y = cY + 64;
+      if (concernResponses.length > 0) {
+        sectionTitle('Questionnaire Observations Requiring Attention');
+        concernResponses.forEach((item, idx) => {
+          ensureSpace(20);
+          doc.fillColor(C.text).font('Helvetica').fontSize(9.8)
+            .text(`${idx + 1}. ${clean(item.question)}`, LM, doc.y, { width: W, align: 'left' });
         });
-      } else {
-        doc.rect(LM, doc.y, W, 38).fillAndStroke('#F9FAFB', C.rule);
-        doc.fillColor(C.muted).font('Helvetica').fontSize(9.5)
-           .text(
-             location
-                      ? `No centers were retrieved automatically. Search OpenStreetMap for "Autism therapy center in ${location}" to find local specialists.`
-               : 'Location information not available. Please update your profile with city, state, and country to receive nearby center suggestions.',
-             LM + 10, doc.y + 10, { width: W - 20, align: 'justify' }
-           );
-        doc.moveDown(2.8);
+        doc.moveDown(0.3);
       }
 
-      doc.moveDown(1);
+      sectionTitle('Clinical Impression');
+      ensureSpace(45);
+      doc.fillColor(C.text).font('Helvetica').fontSize(10)
+        .text(
+          'The observed behavioral characteristics are suggestive of autism spectrum-related developmental differences. '
+          + 'Reduced social reciprocity and repetitive behaviors indicate the need for further clinical evaluation.',
+          LM,
+          doc.y,
+          { width: W, align: 'justify', lineGap: 2 }
+        );
+      doc.moveDown(0.4);
 
-      // ── DISCLAIMER ───────────────────────────────────────────────────────────
-      rule();
-      doc.moveDown(0.5);
-      doc.fillColor(C.riskMod).font('Helvetica-Bold').fontSize(8.5)
-         .text('IMPORTANT DISCLAIMER', LM);
-      doc.fillColor(C.muted).font('Helvetica').fontSize(8)
-         .text(
-           'This report is generated by an AI-assisted screening tool and is intended for informational purposes only. ' +
-           'It is NOT a clinical diagnosis. Only licensed healthcare professionals — such as a developmental pediatrician, ' +
-           'clinical psychologist, or child psychiatrist — can diagnose Autism Spectrum Disorder (ASD). ' +
-           'Early professional evaluation is strongly recommended when any concern is identified.',
-           LM, doc.y, { width: W, align: 'justify', lineGap: 2 }
-         );
+      const llmSummary = summarizeLLM(llmAnalysis);
+      if (llmSummary) {
+        sectionTitle('Extended Clinical Explanation');
+        ensureSpace(60);
+        doc.fillColor(C.text).font('Helvetica').fontSize(9.8)
+          .text(llmSummary, LM, doc.y, { width: W, align: 'justify', lineGap: 2 });
+        doc.moveDown(0.35);
+      }
+
+      sectionTitle('Recommendations');
+      ensureSpace(50);
+      const recommendations =
+        riskLevel.toLowerCase() === 'high'
+          ? [
+              'Arrange specialist evaluation as early as possible.',
+              'Initiate early intervention planning with qualified professionals.',
+              'Track social communication changes weekly and share updates in follow-up visits.',
+            ]
+          : riskLevel.toLowerCase() === 'moderate'
+            ? [
+                'Schedule developmental follow-up with a pediatric specialist.',
+                'Begin guided communication and play-based interaction routines at home.',
+                'Review progress and re-evaluate within the recommended follow-up period.',
+              ]
+            : [
+                'Continue developmental monitoring during routine pediatric visits.',
+                'Maintain interactive communication activities at home.',
+                'Repeat screening if new concerns are observed.',
+              ];
+
+      recommendations.forEach((item) => {
+        ensureSpace(14);
+        doc.fillColor(C.text).font('Helvetica').fontSize(10)
+          .text(`- ${item}`, LM, doc.y, { width: W, align: 'left' });
+      });
+      doc.moveDown(0.4);
+
+      sectionTitle('Nearby Autism Support Centers');
+      const centerRows = nearbyCenters && nearbyCenters.length > 0
+        ? nearbyCenters.slice(0, 3).map((center) => [
+            center.name,
+            center.address,
+            center.distanceText || (center.distanceKm ? `${center.distanceKm.toFixed(1)} km` : 'N/A'),
+            'Navigate',
+          ])
+        : [['No centers available', '-', '-', '-']];
+
+      drawTable(
+        ['Center Name', 'Address', 'Distance', 'Action'],
+        centerRows,
+        [145, 225, 85, W - 455]
+      );
+
+      sectionTitle('Disclaimer');
+      ensureSpace(24);
+      doc.fillColor(C.muted).font('Helvetica-Oblique').fontSize(9.5)
+        .text('This report is for screening purposes only and does not constitute a medical diagnosis.', LM, doc.y, { width: W });
 
       // ── PAGE-NUMBER FOOTER (all pages) ───────────────────────────────────────
       const pageCount = doc.bufferedPageRange().count;
       for (let i = 0; i < pageCount; i++) {
         doc.switchToPage(i);
-        doc.fillColor(C.muted).font('Helvetica').fontSize(7.5)
+        doc.fillColor(C.muted).font('Helvetica').fontSize(8)
            .text(
-             `Page ${i + 1} of ${pageCount}  |  Report ID: ${screening._id}  |  Autisense – Confidential`,
-             LM, doc.page.height - 28, { width: W, align: 'center' }
+             `Page ${i + 1} of ${pageCount} | Report ID: ${screening._id} | AutiSense Confidential`,
+             LM,
+             doc.page.height - 28,
+             { width: W, align: 'center' }
            );
       }
 

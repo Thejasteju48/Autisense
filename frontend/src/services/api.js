@@ -94,4 +94,17 @@ export const centersAPI = {
     api.get('/centers', { params: { city, state, country } }),
 };
 
+export const chatAPI = {
+  getSuggestions: () => api.get('/chat/suggestions'),
+  getHistory: (screeningId) => api.get(`/chat/${screeningId}/history`),
+  sendMessage: (screeningId, payload) => api.post(`/chat/${screeningId}/message`, payload),
+  uploadReport: (screeningId, file) => {
+    const formData = new FormData();
+    formData.append('reportFile', file);
+    return api.post(`/chat/${screeningId}/upload-report`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
+
 export default api;

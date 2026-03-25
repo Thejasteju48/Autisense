@@ -235,7 +235,7 @@ PORT=5000
 MONGODB_URI=mongodb://localhost:27017/autism_screening
 JWT_SECRET=your_unique_secret_key_32_chars_minimum
 JWT_EXPIRE=7d
-GROQ_API_KEY=gsk_xxxxx  # Get from https://www.groq.com
+GROQ_API_KEY=your_groq_api_key_here  # Get from https://www.groq.com
 NODE_ENV=development
 ML_SERVICE_URL=http://localhost:8000
 ```
@@ -244,8 +244,8 @@ ML_SERVICE_URL=http://localhost:8000
 ```bash
 # Already configured for local development
 # No changes needed
-VITE_API_URL=http://localhost:5001/api
-VITE_BACKEND_URL=http://localhost:5001
+VITE_API_URL=http://localhost:5000/api
+VITE_BACKEND_URL=http://localhost:5000
 VITE_ML_URL=http://localhost:8000
 ```
 
@@ -256,7 +256,7 @@ PORT=8000
 HOST=0.0.0.0
 UPLOAD_DIR=./uploads
 MODEL_DIR=./models
-GROQ_API_KEY=gsk_xxxxx  # Same as backend
+GROQ_API_KEY=your_groq_api_key_here  # Same as backend
 ```
 
 ### emotion-service/.env (Optional)

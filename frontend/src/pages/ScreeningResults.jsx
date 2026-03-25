@@ -356,32 +356,50 @@ const ScreeningResults = () => {
 
           <div className="mb-10">
             <p className="text-sm uppercase tracking-[0.2em] text-gray-500 mb-2">Location-Based Support</p>
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">Nearby Autism-Related Centers</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Nearby Autism Support Centers</h3>
+
+            {!centersLoading && centers.length > 0 && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 mb-4">
+                <p className="text-xs uppercase tracking-[0.15em] text-emerald-700 font-semibold">Nearest Autism Center</p>
+                <p className="text-lg font-bold text-gray-900 mt-1">{centers[0].name}</p>
+                <p className="text-sm text-gray-700">{centers[0].address}</p>
+                <p className="text-sm text-emerald-800 font-semibold mt-1">Distance: {centers[0].distanceText || 'N/A'}</p>
+              </div>
+            )}
 
             {centersLoading ? (
               <div className="rounded-xl border-2 border-purple-200 bg-purple-50/70 p-6 text-purple-800">
-                Fetching nearby centers from OpenStreetMap...
+                Fetching nearby centers...
               </div>
             ) : centers.length > 0 ? (
-              <div className="grid gap-4">
-                {centers.map((center, index) => (
-                  <div key={`${center.name}-${index}`} className="rounded-xl border-2 border-purple-200 bg-purple-50/40 p-6">
-                    <div className="flex flex-wrap justify-between items-start gap-4">
-                      <div>
-                        <p className="text-lg font-bold text-gray-900">{center.name}</p>
-                        <p className="text-sm text-gray-700 mt-1">{center.address}</p>
-                      </div>
-                      <a
-                        href={center.mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors"
-                      >
-                        View on Map
-                      </a>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="min-w-full bg-white">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-3">Center Name</th>
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-3">Address</th>
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-3">Distance</th>
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {centers.map((center, index) => (
+                      <tr key={`${center.name}-${index}`} className="border-t border-gray-200">
+                        <td className="px-4 py-3 text-sm font-semibold text-gray-900">{center.name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{center.address}</td>
+                        <td className="px-4 py-3 text-sm text-gray-800 font-medium">{center.distanceText || 'N/A'}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => window.open(center.mapsUrl, '_blank', 'noopener,noreferrer')}
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-semibold transition-colors"
+                          >
+                            Navigate
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-6 text-gray-700">
@@ -394,6 +412,12 @@ const ScreeningResults = () => {
           <div className="flex flex-wrap gap-4 pt-8 border-t mt-10">
             <button onClick={() => navigate('/dashboard')} className="btn-secondary flex-1 sm:flex-none">
               ← View History
+            </button>
+            <button
+              onClick={() => navigate(`/screening/${screeningId}/chat`)}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition-colors flex-1 sm:flex-none"
+            >
+              Open AI Assistant
             </button>
             <button
               onClick={handleDownloadReport}
