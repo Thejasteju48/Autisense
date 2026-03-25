@@ -222,8 +222,8 @@ npm run preview
 
 ### Backend (.env)
 ```env
-PORT=5001
-MONGODB_URI=mongodb+srv://[user]:[password]@[cluster].mongodb.net/?appName=Cluster0
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/autism_screening
 JWT_SECRET=your_secret_key_here
 JWT_EXPIRE=7d
 ML_SERVICE_URL=http://localhost:8000
@@ -238,7 +238,7 @@ GROQ_API_KEY=your_groq_api_key
 
 ### Frontend (.env)
 ```env
-VITE_API_URL=http://localhost:5001
+VITE_API_URL=http://localhost:5000/api
 PORT=5173
 ```
 

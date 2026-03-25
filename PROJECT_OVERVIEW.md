@@ -1104,11 +1104,11 @@ function ScreeningFlow() {
 #### Backend (.env)
 ```env
 # Server
-PORT=5001
+PORT=5000
 NODE_ENV=production
 
 # Database
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/db?retryWrites=true
+MONGODB_URI=your_mongodb_uri_here
 
 # Authentication
 JWT_SECRET=<random 64+ character string>

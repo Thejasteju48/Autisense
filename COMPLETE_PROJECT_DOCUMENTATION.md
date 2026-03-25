@@ -12,7 +12,7 @@ The system employs a dual-assessment methodology combining:
 1. **Video-based behavioral analysis** (50% of assessment) - Using MediaPipe AI to detect 6 key behavioral markers from recorded video
 2. **Clinical questionnaire assessment** (50% of assessment) - M-CHAT-R validated screening questionnaire with 20 yes/no questions
 
-The final risk assessment combines both methods using machine learning ensemble models (Random Forest + Gradient Boosting) to predict autism likelihood on a 0-100% scale, categorizing results as Low Risk (<40%), Moderate Risk (40-70%), or High Risk (≥70%).
+The final risk assessment combines both methods using machine learning ensemble models (Random Forest + Gradient Boosting) to predict autism likelihood on a 0-100% scale, categorizing results as Low Risk (<30%), Moderate Risk (30-<60%), or High Risk (≥60%).
 
 **Key Features:**
 - Non-invasive recorded video analysis (no live recording required)
@@ -269,7 +269,19 @@ MediaPipe is Google's machine learning framework for building robust, production
 | ASGI Server | Uvicorn | Latest | ASGI server for FastAPI |
 | CORS | python-multipart | Latest | Multipart form data handling |
 
-#### 3.1.4 Development Tools
+#### 3.1.4 RAG Chatbot Service Stack (Parent Guidance Chat)
+
+| Component | Technology | Version | Purpose |
+|-----------|-----------|---------|---------|
+| Runtime | Python | 3.9+ | Programming language |
+| Framework | FastAPI | 0.104+ | REST API for chat + indexing |
+| Vector DB | ChromaDB | Latest | Persistent vector store for report chunks |
+| Embeddings | sentence-transformers (MiniLM) | Latest | Convert report chunks into vectors |
+| PDF Processing | LangChain loaders + splitters | Latest | Extract and chunk PDF text |
+| LLM | Groq API | Latest | Answer generation with strict guardrails |
+| ASGI Server | Uvicorn | Latest | Run FastAPI service |
+
+#### 3.1.5 Development Tools
 
 | Tool | Purpose |
 |------|---------|
@@ -334,7 +346,7 @@ AUTISENSE SYSTEM ARCHITECTURE
 │   ├── Child Profile Management
 │   ├── Screening Coordination
 │   ├── Data Persistence (MongoDB)
-│   └── API Gateway to ML Services
+│   └── API Gateway to ML + RAG Services
 │
 ├── ML Services (Python/FastAPI)
 │   ├── Emotion Detection Service
@@ -343,6 +355,8 @@ AUTISENSE SYSTEM ARCHITECTURE
 │   │   ├── Questionnaire Prediction
 │   │   ├── Video Feature Extraction
 │   │   └── Port 8000
+│   ├── RAG Chatbot Service (Parent Guidance Chat)
+│   │   └── Port 8002
 │   └── Models
 │       ├── autism_model1.pkl (Random Forest)
 │       └── autism_model2.pkl (Gradient Boosting)
@@ -363,10 +377,10 @@ AUTISENSE SYSTEM ARCHITECTURE
 
 #### 4.1.1 Microservices Architecture
 
-The system is designed as a **microservices architecture** with three independent services communicating via REST APIs:
+The system is designed as a **microservices architecture** with independent services communicating via REST APIs:
 
 **1. Frontend Service (React/Vite)**
-- **Port:** 3000
+- **Port:** 5173 (development)
 - **Role:** User interface, form handling, video capture
 - **Responsibilities:**
   - Display questionnaires
@@ -376,7 +390,7 @@ The system is designed as a **microservices architecture** with three independen
   - Manage user state
 
 **2. Backend Service (Node.js/Express)**
-- **Port:** 5001
+- **Port:** 5000
 - **Role:** Business logic, data management, orchestration
 - **Responsibilities:**
   - User authentication and authorization
@@ -394,7 +408,13 @@ The system is designed as a **microservices architecture** with three independen
   - Facial emotion recognition
   - Expression analysis
 
-**4. Database (MongoDB)**
+**4. Parent Guidance Chat (RAG Service - Python/FastAPI)**
+- **RAG Service Port:** 8002
+  - RAG chatbot used in the Parent Guidance Chat page
+  - Indexes uploaded PDF medical reports into ChromaDB for retrieval
+  - Answers user questions using strict guardrails (never invent report content)
+
+**5. Database (MongoDB)**
 - **Collections:**
   - `users` - User accounts and profiles
   - `children` - Child profiles
@@ -424,13 +444,30 @@ SCREENING DATA FLOW:
    Backend → ML Service (questionnaire responses)
    ML Service → Run Ensemble Models → Return Probability
    Backend → Calculate Final Score:
-      Final = (Questionnaire_Score × 0.6) + (Video_Score × 0.4)
+    Final = (Questionnaire_Probability × 0.5) + (Video_Behavior_Score × 0.5)
    Backend → Save Final Score → MongoDB
 
 5. RESULTS DISPLAY
    Frontend → Backend → Fetch Screening Results
    Backend → MongoDB (retrieve data)
    Frontend → Display Risk Level, Scores, Features
+
+PARENT GUIDANCE CHAT (RAG) DATA FLOW:
+
+1. OPTIONAL: REPORT UPLOAD + INDEX
+  Frontend → Backend: POST /api/chat/:screeningId/upload-report (PDF)
+  Backend → Disk: save PDF under backend/uploads/medical-reports
+  Backend → RAG Service: POST /rag/index (screening_id + absolute pdf_path)
+  RAG Service → ChromaDB: embed + store chunks for that screening_id
+  Backend → Frontend: return indexing status (success/failure)
+
+2. CHAT MESSAGE
+  Frontend → Backend: POST /api/chat/:screeningId/message
+  Backend → RAG Service: POST /chat (screening_id + system_data + history + question)
+  RAG Service:
+    - Retrieves top chunks if available
+    - If no chunks: answers from system_data only and does not claim report facts
+  Backend → Frontend: return answer + reportContextUsed
 ```
 
 ### 4.2 Frontend Implementation Details
@@ -675,7 +712,7 @@ const [latestScreenings, setLatestScreenings] = useState({});
 ```javascript
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -743,7 +780,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
 app.use(express.json({ limit: '100mb' }));
@@ -753,6 +790,7 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/screenings', screeningRoutes);
 app.use('/api/children', childRoutes);
+app.use('/api/chat', require('./routes/chatRoutes'));
 
 // Error handling middleware
 app.use((error, req, res, next) => {
@@ -764,7 +802,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✓ Backend running on port ${PORT}`);
 });
@@ -2373,17 +2411,17 @@ print('✓ Models saved successfully')
       videoScore = 67%
    
    └─ COMBINE SCORES:
-      finalScore = (83% × 0.60) + (67% × 0.40)
-      finalScore = 49.8% + 26.8%
-      finalScore = 76.6%
+    finalScore = (83% × 0.50) + (67% × 0.50)
+    finalScore = 41.5% + 33.5%
+    finalScore = 75.0%
    
    └─ DETERMINE RISK LEVEL:
-      76.6% ≥ 70% → riskLevel = "High"
+    75.0% ≥ 60% → riskLevel = "High"
 
 5. RESULTS DISPLAYED TO USER
    Dashboard shows:
    ┌─ Risk Level: High (red badge)
-   ├─ Final Score: 76.6%
+  ├─ Final Score: 75.0%
    ├─ Questionnaire Score: 83%      ← From ML prediction
    ├─ Video Analysis Score: 67%     ← From 6 markers
    ├─ 6 Behaviors Detected:
