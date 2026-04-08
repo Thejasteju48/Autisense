@@ -165,7 +165,10 @@ def retrieve_context_relaxed(*, screening_id: str, question: str, n_results: int
     return retrieved_context, filtered
 
 
-def answer_question(*, screening_id: str, system_data: dict[str, Any], question: str, history: list[dict[str, Any]], n_results: int) -> dict[str, Any]:
+def answer_question(*, screening_id: str, system_data: dict[str, Any], question: str, history: list[dict[str, Any]], n_results: int, comparison_data: dict[str, Any] | None = None) -> dict[str, Any]:
+    if comparison_data is None:
+        comparison_data = {}
+    
     question_with_history = build_question_with_history(question, history, max_messages=5)
 
     intent = detect_intent(question)
@@ -174,6 +177,13 @@ def answer_question(*, screening_id: str, system_data: dict[str, Any], question:
     has_report_context = bool(chunks)
 
     asked_about_report = bool(re.search(r"\b(report|uploaded|pdf|document)\b", question, flags=re.IGNORECASE))
+    is_comparison_question = bool(
+        re.search(
+            r"\b(compare|comparison|progress|improve|improved|worse|worsened|changed|difference|previous|last\s+screening|previous\s+assessment)\b",
+            question,
+            flags=re.IGNORECASE,
+        )
+    )
     is_generic_report_summary = bool(
         re.search(
             r"\b(what\s+does\s+.*report\s+say|summari[sz]e|summary|overall\s+findings|key\s+findings)\b",
@@ -217,10 +227,12 @@ def answer_question(*, screening_id: str, system_data: dict[str, Any], question:
     # If no relevant chunks, answer only from system_data by sending empty context.
     prompt = build_strict_prompt(
         system_data=system_data,
+        comparison_data=comparison_data,
         retrieved_context=retrieved_context if retrieved_context else "",
         question=question_with_history,
         intent=intent,
         has_report_context=has_report_context,
+        is_comparison_question=is_comparison_question,
     )
 
     try:

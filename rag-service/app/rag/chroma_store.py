@@ -24,6 +24,37 @@ def get_chroma_collection():
     return collection
 
 
+def get_all_indexed_content(*, screening_id: str) -> str:
+    """Retrieve all indexed chunks for a screening ID and combine into full report text."""
+    collection = get_chroma_collection()
+    
+    # Get all documents for this screening
+    results = collection.get(
+        where={"screening_id": screening_id},
+        include=["documents"],
+    )
+
+    documents = results.get("documents", []) or []
+    ids = results.get("ids", []) or []
+    
+    if not documents:
+        return ""
+
+    # Combine chunks in a stable order by numeric suffix in id (screening_id:chunk_index).
+    pairs = list(zip(ids, documents)) if ids else [("", d) for d in documents]
+
+    def _chunk_order(item: tuple[str, str]) -> int:
+        chunk_id, _ = item
+        try:
+            return int(str(chunk_id).rsplit(":", 1)[-1])
+        except Exception:
+            return 0
+
+    pairs.sort(key=_chunk_order)
+
+    return "\n\n".join([str(doc).strip() for _, doc in pairs if str(doc).strip()])
+
+
 def upsert_report_chunks(
     *,
     screening_id: str,

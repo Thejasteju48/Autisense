@@ -52,6 +52,46 @@ const detectIntent = (question = '') => {
   return 'other';
 };
 
+const detectComparisonQuery = (question = '') => {
+  const q = String(question || '').toLowerCase();
+  return /\b(compare|compared|comparison|improve|improved|progress|better|worse|change|changed|before|previous|last time|last screening|previous assessment|difference|different report|two reports|develop|development|how has|is.*better|was.*better)\b/.test(q);
+};
+
+const formatPreviousScreening = (screening) => {
+  const features = screening?.liveVideoFeatures || {};
+  
+  // Determine risk level from video features or fallback to old field
+  let riskLevel = 'Not assessed';
+  if (features.eyeContact || features.handStimming || features.socialReciprocity) {
+    // If we have video features, assess risk based on them
+    if (features.eyeContact === 'Low Eye Contact' || 
+        features.socialReciprocity === 'Low' ||
+        features.handStimming === 'Present') {
+      riskLevel = 'Moderate to High';
+    } else {
+      riskLevel = 'Low to Moderate';
+    }
+  } else if (screening?.riskLevel && screening.riskLevel !== '') {
+    // Fallback to stored risk level
+    riskLevel = screening.riskLevel;
+  }
+  
+  return {
+    date: screening?.createdAt || 'Unknown',
+    riskLevel: riskLevel,
+    ageMonths: screening?.child?.ageInMonths ?? 'Unknown',
+    hasVideoData: !!(features.eyeContact || features.handStimming),
+    indicators: {
+      eyeContact: features.eyeContact || 'Not recorded',
+      headStimming: features.headStimming || 'Not recorded',
+      handStimming: features.handStimming || 'Not recorded',
+      handGesture: features.handGesture || 'Not recorded',
+      socialReciprocity: features.socialReciprocity || 'Not recorded',
+      emotionVariation: features.emotionVariation || 'Not recorded',
+    },
+  };
+};
+
 const toSystemData = (screening) => {
   const indicators = [];
   const features = screening?.liveVideoFeatures || {};
@@ -120,35 +160,246 @@ exports.sendMessage = async (req, res) => {
       text: m.text,
     }));
 
+    // Check if this is a comparison/progress question
+    const isComparisonQuery = detectComparisonQuery(question);
+    let previousScreening = null;
+    let comparisonData = null;
+
+    if (isComparisonQuery) {
+      try {
+        // Prefer the most recent previous screening that has an uploaded report.
+        previousScreening = await Screening.findOne(
+          {
+            _id: { $ne: screeningId },
+            child: screening.child._id,
+            user: req.user._id,
+            uploadedReportPath: { $exists: true, $ne: '' },
+          }
+        )
+          .sort({ createdAt: -1 })
+          .populate('child', 'ageInMonths')
+          .lean();
+
+        // Fallback: any previous screening for this child.
+        if (!previousScreening) {
+          previousScreening = await Screening.findOne(
+          {
+            _id: { $ne: screeningId },
+            child: screening.child._id,
+            user: req.user._id,
+          }
+          )
+            .sort({ createdAt: -1 })
+            .populate('child', 'ageInMonths')
+            .lean();
+        }
+
+        if (previousScreening) {
+          const previous = formatPreviousScreening(previousScreening);
+          const current = {
+            date: screening?.createdAt || 'Now',
+            riskLevel: screening?.riskLevel || 'N/A',
+            ageMonths: screening?.child?.ageInMonths ?? 'N/A',
+            indicators: {
+              eyeContact: screening?.liveVideoFeatures?.eyeContact || 'N/A',
+              headStimming: screening?.liveVideoFeatures?.headStimming || 'N/A',
+              handStimming: screening?.liveVideoFeatures?.handStimming || 'N/A',
+              handGesture: screening?.liveVideoFeatures?.handGesture || 'N/A',
+              socialReciprocity: screening?.liveVideoFeatures?.socialReciprocity || 'N/A',
+              emotionVariation: screening?.liveVideoFeatures?.emotionVariation || 'N/A',
+            },
+          };
+
+          comparisonData = {
+            hasPreviousScreening: true,
+            previous,
+            current,
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to fetch previous screening for comparison:', e.message);
+        comparisonData = { hasPreviousScreening: false };
+      }
+    }
+
+    if (!comparisonData) {
+      comparisonData = { hasPreviousScreening: false };
+    }
+
     let answer = 'Information not available';
     let usedReportContext = false;
-    try {
-      const ragRes = await postJsonWithRetry(`${RAG_SERVICE_URL}/chat`, {
-        screening_id: String(screeningId),
-        system_data: systemData,
-        question: String(question).trim(),
-        history,
-        n_results: 4,
-      }, { timeout: RAG_CHAT_TIMEOUT_MS, retries: 1 });
 
-      answer = ragRes?.data?.answer || answer;
-      usedReportContext = !!ragRes?.data?.used_report_context;
-    } catch (e) {
-      const status = e?.response?.status;
-      const detail = e?.response?.data;
-      console.error('RAG service failed, returning fallback:', {
-        message: e?.message,
-        name: e?.name,
-        code: e?.code,
-        isAxiosError: !!e?.isAxiosError,
-        status,
-        data: detail,
-        url: `${RAG_SERVICE_URL}/chat`,
-      });
+    // If comparison query with previous screening, use dedicated comparison endpoint
+    if (isComparisonQuery && comparisonData?.hasPreviousScreening && previousScreening) {
+      try {
+        const previous = comparisonData.previous;
+        const current = comparisonData.current;
 
-      // Common first-run behavior: the Python service downloads/loads embedding models.
-      if (String(e?.message || '').toLowerCase().includes('timeout')) {
-        answer = 'Information not available (RAG service is warming up — please try again in 1–2 minutes)';
+        const ensureIndexed = async (targetScreeningId, pdfPath) => {
+          if (!pdfPath || !String(pdfPath).trim()) return;
+          if (!fs.existsSync(pdfPath)) return;
+          try {
+            await postJsonWithRetry(`${RAG_SERVICE_URL}/rag/index`, {
+              screening_id: String(targetScreeningId),
+              pdf_path: pdfPath,
+            }, { timeout: RAG_INDEX_TIMEOUT_MS, retries: 1 });
+          } catch (idxErr) {
+            console.warn('On-demand indexing failed (will still attempt comparison):', {
+              screeningId: String(targetScreeningId),
+              message: idxErr?.message,
+              status: idxErr?.response?.status,
+            });
+          }
+        };
+
+        // Attempt best-effort re-index for both reports before comparing.
+        await ensureIndexed(previousScreening._id, previousScreening?.uploadedReportPath);
+        await ensureIndexed(screeningId, screening?.uploadedReportPath);
+
+        // First preference: compare uploaded/indexed PDF reports for both screenings.
+        try {
+          const indexedRes = await postJsonWithRetry(`${RAG_SERVICE_URL}/compare-indexed-reports`, {
+            previous_screening_id: String(previousScreening._id),
+            current_screening_id: String(screeningId),
+          }, { timeout: RAG_CHAT_TIMEOUT_MS, retries: 1 });
+
+          const { status, differences, explanation, recommendation } = indexedRes?.data || {};
+          answer = [
+            `Status: ${status || 'Unable to determine'}`,
+            `Differences: ${differences || 'No differences found'}`,
+            `Explanation: ${explanation || 'Unable to provide analysis'}`,
+            `Recommendation: ${recommendation || 'No recommendations available'}`,
+          ].join('\n\n');
+          usedReportContext = true;
+        } catch (indexedErr) {
+          const indexedMissing = indexedErr?.response?.status === 404;
+          if (indexedMissing) {
+            try {
+              if (previousScreening?.uploadedReportPath && screening?.uploadedReportPath) {
+                const directRes = await postJsonWithRetry(`${RAG_SERVICE_URL}/compare-report-paths`, {
+                  previous_pdf_path: previousScreening.uploadedReportPath,
+                  current_pdf_path: screening.uploadedReportPath,
+                }, { timeout: RAG_CHAT_TIMEOUT_MS, retries: 1 });
+
+                const { status, differences, explanation, recommendation } = directRes?.data || {};
+                answer = [
+                  `Status: ${status || 'Unable to determine'}`,
+                  `Differences: ${differences || 'No differences found'}`,
+                  `Explanation: ${explanation || 'Unable to provide analysis'}`,
+                  `Recommendation: ${recommendation || 'No recommendations available'}`,
+                ].join('\n\n');
+                usedReportContext = true;
+              }
+            } catch (directErr) {
+              console.warn('Direct PDF-path comparison failed, will fallback to DB comparison:', {
+                message: directErr?.message,
+                status: directErr?.response?.status,
+              });
+            }
+          } else {
+            console.warn('Indexed report comparison failed, will fallback to DB comparison:', {
+              message: indexedErr?.message,
+              status: indexedErr?.response?.status,
+            });
+          }
+        }
+
+        if (usedReportContext) {
+          // Already answered via indexed report comparison.
+        } else {
+        
+        // Check if previous screening has video data for fair comparison
+        const hasVideoData = previous.indicators.eyeContact !== 'Not recorded' &&
+                            previous.indicators.eyeContact !== '';
+        
+        if (!hasVideoData) {
+          // If previous screening lacks video data, provide general guidance
+          answer = [
+            'Detailed comparison is limited because the previous screening has incomplete video-behavior fields.',
+            'Current assessment:',
+            `- Risk Level: ${current.riskLevel}`,
+            `- Eye Contact: ${current.indicators.eyeContact}`,
+            `- Hand Stimming: ${current.indicators.handStimming}`,
+            `- Hand Gesture: ${current.indicators.handGesture}`,
+            `- Social Reciprocity: ${current.indicators.socialReciprocity}`,
+            `- Head Stimming: ${current.indicators.headStimming}`,
+            'For accurate progress tracking, keep uploading full reports and complete video analysis in each screening.',
+          ].join('\n');
+          
+          usedReportContext = true;
+        } else {
+          // Both have video data - run LLM-based detailed comparison
+          const previousReportJson = JSON.stringify({
+            screeningDate: previous.date,
+            ageMonths: previous.ageMonths,
+            riskLevel: previous.riskLevel,
+            indicators: previous.indicators,
+          }, null, 2);
+
+          const currentReportJson = JSON.stringify({
+            screeningDate: current.date,
+            ageMonths: current.ageMonths,
+            riskLevel: current.riskLevel,
+            indicators: current.indicators,
+          }, null, 2);
+
+          const comparisonRes = await postJsonWithRetry(`${RAG_SERVICE_URL}/compare-reports`, {
+            previous_report: previousReportJson,
+            current_report: currentReportJson,
+          }, { timeout: RAG_CHAT_TIMEOUT_MS, retries: 1 });
+
+          const { status, differences, explanation, recommendation } = comparisonRes?.data || {};
+
+          answer = [
+            `Status: ${status || 'Unable to determine'}`,
+            `Differences: ${differences || 'No differences found'}`,
+            `Explanation: ${explanation || 'Unable to provide analysis'}`,
+            `Recommendation: ${recommendation || 'No recommendations available'}`,
+          ].join('\n\n');
+
+          usedReportContext = true;
+        }
+        }
+      } catch (e) {
+        console.warn('Comparison endpoint failed, falling back to chat:', {
+          message: e?.message,
+          status: e?.response?.status,
+        });
+        // Fall through to regular chat if comparison fails
+      }
+    }
+
+    // If regular chat or comparison fell back
+    if (!usedReportContext) {
+      try {
+        const ragRes = await postJsonWithRetry(`${RAG_SERVICE_URL}/chat`, {
+          screening_id: String(screeningId),
+          system_data: systemData,
+          comparison_data: comparisonData,
+          question: String(question).trim(),
+          history,
+          n_results: 4,
+        }, { timeout: RAG_CHAT_TIMEOUT_MS, retries: 1 });
+
+        answer = ragRes?.data?.answer || answer;
+        usedReportContext = !!ragRes?.data?.used_report_context;
+      } catch (e) {
+        const status = e?.response?.status;
+        const detail = e?.response?.data;
+        console.error('RAG service failed, returning fallback:', {
+          message: e?.message,
+          name: e?.name,
+          code: e?.code,
+          isAxiosError: !!e?.isAxiosError,
+          status,
+          data: detail,
+          url: `${RAG_SERVICE_URL}/chat`,
+        });
+
+        // Common first-run behavior: the Python service downloads/loads embedding models.
+        if (String(e?.message || '').toLowerCase().includes('timeout')) {
+          answer = 'Information not available (RAG service is warming up — please try again in 1–2 minutes)';
+        }
       }
     }
 

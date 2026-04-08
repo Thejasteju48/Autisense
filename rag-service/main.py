@@ -9,8 +9,19 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.schemas import IndexFromPathRequest, ChatRequest, ChatResponse
+from app.schemas import (
+    IndexFromPathRequest,
+    ChatRequest,
+    ChatResponse,
+    ReportComparisonRequest,
+    ReportComparisonResponse,
+    CompareIndexedReportsRequest,
+    CompareReportPathsRequest,
+)
 from app.services.chat_service import index_pdf_for_screening, answer_question, warmup_rag
+from app.services.comparison_service import compare_reports
+from app.rag.chroma_store import get_all_indexed_content
+from app.rag.pdf_processor import load_and_split_pdf
 
 DOTENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=DOTENV_PATH, override=True)
@@ -57,7 +68,14 @@ def root():
     return {
         "service": "RAG Chatbot Service",
         "status": "running",
-        "endpoints": ["/rag/index", "/rag/index-upload", "/chat"],
+        "endpoints": [
+            "/rag/index",
+            "/rag/index-upload",
+            "/chat",
+            "/compare-reports",
+            "/compare-indexed-reports",
+            "/compare-report-paths",
+        ],
     }
 
 
@@ -126,12 +144,89 @@ def chat(req: ChatRequest):
         data = answer_question(
             screening_id=req.screening_id,
             system_data=req.system_data,
+            comparison_data=req.comparison_data,
             question=req.question,
             history=[_dump_msg(m) for m in req.history],
             n_results=req.n_results,
         )
         return ChatResponse(**data)
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/compare-reports", response_model=ReportComparisonResponse)
+def compare_two_reports(req: ReportComparisonRequest):
+    """
+    Compare two autism assessment reports using LLM-based analysis.
+    
+    This endpoint analyzes behavioral changes between a previous report and 
+    a current report, identifying improvements, declines, or no significant changes.
+    """
+    try:
+        result = compare_reports(
+            previous_report=req.previous_report,
+            current_report=req.current_report
+        )
+        return ReportComparisonResponse(**result)
+    except Exception as e:
+        logger.error(f"Error in compare_reports endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/compare-indexed-reports", response_model=ReportComparisonResponse)
+def compare_indexed_reports(req: CompareIndexedReportsRequest):
+    """Compare two already-indexed PDF reports by screening IDs."""
+    try:
+        previous_report = get_all_indexed_content(screening_id=req.previous_screening_id)
+        current_report = get_all_indexed_content(screening_id=req.current_screening_id)
+
+        if not previous_report:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No indexed report found for previous_screening_id={req.previous_screening_id}",
+            )
+
+        if not current_report:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No indexed report found for current_screening_id={req.current_screening_id}",
+            )
+
+        result = compare_reports(previous_report=previous_report, current_report=current_report)
+        return ReportComparisonResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in compare_indexed_reports endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/compare-report-paths", response_model=ReportComparisonResponse)
+def compare_report_paths(req: CompareReportPathsRequest):
+    """Compare two reports directly from PDF paths, independent of Chroma indexing."""
+    try:
+        if not os.path.exists(req.previous_pdf_path):
+            raise HTTPException(status_code=404, detail=f"Previous PDF not found: {req.previous_pdf_path}")
+        if not os.path.exists(req.current_pdf_path):
+            raise HTTPException(status_code=404, detail=f"Current PDF not found: {req.current_pdf_path}")
+
+        prev_chunks = load_and_split_pdf(req.previous_pdf_path, chunk_size=500, chunk_overlap=100)
+        curr_chunks = load_and_split_pdf(req.current_pdf_path, chunk_size=500, chunk_overlap=100)
+
+        previous_report = "\n\n".join([t for (t, _) in prev_chunks if str(t).strip()]).strip()
+        current_report = "\n\n".join([t for (t, _) in curr_chunks if str(t).strip()]).strip()
+
+        if not previous_report:
+            raise HTTPException(status_code=400, detail="Previous PDF has no extractable text")
+        if not current_report:
+            raise HTTPException(status_code=400, detail="Current PDF has no extractable text")
+
+        result = compare_reports(previous_report=previous_report, current_report=current_report)
+        return ReportComparisonResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in compare_report_paths endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

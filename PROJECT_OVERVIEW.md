@@ -381,23 +381,23 @@ Children with autism often show reduced eye contact or atypical gaze patterns. T
 **Algorithm:**
 ```
 1. For each video frame (30 FPS ~= 30 frames/second):
-   a. Extract iris positions (normalized 0-1)
-   b. Calculate iris position relative to eye width
-   c. Determine if looking forward (center zone)
-   d. Check head orientation (forward-facing)
+  a. Extract iris positions (normalized 0-1)
+  b. Calculate iris position relative to eye width
+  c. Determine if looking forward (center zone)
+  d. Check head orientation (forward-facing)
    
 2. Forward Gaze Thresholds:
-   - Iris X position: 0.3-0.7 (centered, not at edges)
-   - Iris Y position: 0.3-0.7 (not top/bottom scanning)
-   - Head lateral angle: < 30° from forward
+  - Iris X position: 0.3-0.7 (centered, not at edges)
+  - Iris Y position: 0.3-0.7 (not top/bottom scanning)
+  - Head lateral angle: < 30° from forward
    
 3. Aggregate across entire video:
-   forward_percent = (frames_with_forward_gaze / total_frames) × 100
+  forward_percent = (frames_with_forward_gaze / total_frames) × 100
    
 4. Classification:
-   - ≥60%: Normal Eye Contact
-   - 40-59%: Reduced Eye Contact
-   - <40%: Low Eye Contact
+  - ≥60%: Normal Eye Contact
+  - 40-59%: Reduced Eye Contact
+  - <40%: Low Eye Contact
 ```
 
 **Output Score:** 0-100% (higher = more eye contact)
@@ -418,31 +418,31 @@ Repetitive head movements (side-to-side shaking, nodding, tilting) are stereotyp
 **Algorithm:**
 ```
 1. Extract head position from pose landmarks:
-   head_center = average(left_eye, right_eye, nose)
+  head_center = average(left_eye, right_eye, nose)
    
 2. Calculate head velocity:
-   For each frame: velocity[i] = distance(head[i] - head[i-1])
+  For each frame: velocity[i] = distance(head[i] - head[i-1])
    
 3. Analyze movement patterns:
-   - Calculate movement extent (how much area covered)
-   - Calculate velocity range
-   - Use FFT to detect oscillation frequencies
+  - Calculate movement extent (how much area covered)
+  - Calculate velocity range
+  - Use FFT to detect oscillation frequencies
    
 4. Periodicity Detection (FFT):
-   fft_result = FFT(velocity_array)
-   Look for peaks in 1-3 Hz range (stimming frequencies)
-   periodicity_ratio = highest_peak_power / average_noise_power
+  fft_result = FFT(velocity_array)
+  Look for peaks in 1-3 Hz range (stimming frequencies)
+  periodicity_ratio = highest_peak_power / average_noise_power
    
 5. Spatial Constraint:
-   movement_area = max(x) - min(x) × max(y) - min(y)
-   Stimming: confined area < 0.04 (4% of frame)
+  movement_area = max(x) - min(x) × max(y) - min(y)
+  Stimming: confined area < 0.04 (4% of frame)
    
 6. Classification:
-   if movement_area < 0.04 AND periodicity_ratio > 2.0 AND mean_velocity > 0.015:
-       check_percentage = (frames_with_stimming / total_frames) × 100
-       if check_percentage > 20%:
-           return 'Present'
-   return 'Absent'
+  if movement_area < 0.04 AND periodicity_ratio > 2.0 AND mean_velocity > 0.015:
+     check_percentage = (frames_with_stimming / total_frames) × 100
+     if check_percentage > 20%:
+        return 'Present'
+  return 'Absent'
 ```
 
 **Output:** Present/Absent (Binary)
@@ -464,43 +464,43 @@ Hand movements including flapping, wringing, twisting, or repetitive fidgeting. 
 **Algorithm:**
 ```
 1. Extract 21 hand landmarks per hand:
-   - Wrist (landmark 0)
-   - Fingers (landmarks 1-20)
-   - Coordinates: x, y, z (depth)
+  - Wrist (landmark 0)
+  - Fingers (landmarks 1-20)
+  - Coordinates: x, y, z (depth)
    
 2. Hand Velocity Calculation:
-   For wrist position: velocity[i] = distance(wrist[i] - wrist[i-1])
+  For wrist position: velocity[i] = distance(wrist[i] - wrist[i-1])
    
 3. Flapping Pattern Detection (vertical oscillation):
-   hand_height = wrist_y_position
-   height_changes = diff(hand_height)
+  hand_height = wrist_y_position
+  height_changes = diff(hand_height)
    
-   Sign changes = count(where sign changes)
-   Vertical_oscillation_rate = sign_changes / total_frames
+  Sign changes = count(where sign changes)
+  Vertical_oscillation_rate = sign_changes / total_frames
    
-   Expected for flapping: 0.3+ (direction changes frequently)
+  Expected for flapping: 0.3+ (direction changes frequently)
    
 4. Horizontal Movement:
-   hand_x = wrist_x_position
-   x_changes = diff(hand_x)
-   Horizontal_oscillation = sign_changes(x_changes) / total_frames
+  hand_x = wrist_x_position
+  x_changes = diff(hand_x)
+  Horizontal_oscillation = sign_changes(x_changes) / total_frames
    
 5. Velocity Analysis:
-   mean_velocity = average(velocity_array)
-   Stimming threshold: > 0.02 per frame
+  mean_velocity = average(velocity_array)
+  Stimming threshold: > 0.02 per frame
    
 6. Classification:
-   stimming_frames = 0
-   FOR each frame:
-       if (mean_velocity > 0.02 AND 
-           (vertical_oscillation > 0.3 OR horizontal_oscillation > 0.3)):
-           stimming_frames++
+  stimming_frames = 0
+  FOR each frame:
+     if (mean_velocity > 0.02 AND 
+        (vertical_oscillation > 0.3 OR horizontal_oscillation > 0.3)):
+        stimming_frames++
    
-   stimming_percent = (stimming_frames / total_frames) × 100
+  stimming_percent = (stimming_frames / total_frames) × 100
    
-   if stimming_percent > 15%:
-       return 'Present'
-   return 'Absent'
+  if stimming_percent > 15%:
+     return 'Present'
+  return 'Absent'
 ```
 
 **Output:** Present/Absent (Binary)
@@ -520,35 +520,35 @@ Communicative hand gestures (pointing, waving, reaching) indicate social intent.
 **Algorithm:**
 ```
 1. Analyze Hand Shape:
-   wrist = landmark 0
-   index_tip = landmark 8
-   pinky_tip = landmark 20
-   palm_center = mean(all_landmarks)
+  wrist = landmark 0
+  index_tip = landmark 8
+  pinky_tip = landmark 20
+  palm_center = mean(all_landmarks)
    
 2. Pointing Detection:
-   index_to_pinky_distance = distance(index_tip - pinky_tip)
-   index_finger_length = distance(index_tip - index_base)
+  index_to_pinky_distance = distance(index_tip - pinky_tip)
+  index_finger_length = distance(index_tip - index_base)
    
-   is_pointing = (index_to_pinky_distance > index_finger_length)
+  is_pointing = (index_to_pinky_distance > index_finger_length)
    
 3. Open Hand Detection:
-   hand_opening = std_dev(distances_from_palm_center)
-   is_open = (hand_opening > 0.05) [fingers spread out]
+  hand_opening = std_dev(distances_from_palm_center)
+  is_open = (hand_opening > 0.05) [fingers spread out]
    
 4. Reaching Detection:
-   hand_distance_from_body = distance(hand - torso_center)
-   is_reaching = (hand_distance_from_body > threshold)
+  hand_distance_from_body = distance(hand - torso_center)
+  is_reaching = (hand_distance_from_body > threshold)
    
 5. For each frame:
-   if (is_pointing OR is_open OR is_reaching):
-       communicative_frames++
+  if (is_pointing OR is_open OR is_reaching):
+     communicative_frames++
        
 6. Classification:
-   gesture_percentage = (communicative_frames / total_frames) × 100
+  gesture_percentage = (communicative_frames / total_frames) × 100
    
-   if gesture_percentage > 25%:
-       return 'Present'
-   return 'Absent'
+  if gesture_percentage > 25%:
+     return 'Present'
+  return 'Absent'
 ```
 
 **Output:** Present/Absent (Binary)
@@ -567,34 +567,34 @@ Social reciprocity involves responding to others' social cues and maintaining bo
 **Algorithm:**
 ```
 1. Extract Key Landmarks:
-   left_shoulder = landmark 11
-   right_shoulder = landmark 12
-   nose = landmark 0
-   left_wrist = landmark 15
-   right_wrist = landmark 16
+  left_shoulder = landmark 11
+  right_shoulder = landmark 12
+  nose = landmark 0
+  left_wrist = landmark 15
+  right_wrist = landmark 16
    
 2. Check Forward-Facing (head toward camera):
-   shoulder_center = (left_shoulder + right_shoulder) / 2
-   nose_shoulder_distance = |nose.x - shoulder_center.x|
-   shoulder_width = distance(right_shoulder - left_shoulder)
+  shoulder_center = (left_shoulder + right_shoulder) / 2
+  nose_shoulder_distance = |nose.x - shoulder_center.x|
+  shoulder_width = distance(right_shoulder - left_shoulder)
    
-   is_forward = (nose_shoulder_distance < shoulder_width × 0.2)
+  is_forward = (nose_shoulder_distance < shoulder_width × 0.2)
    
 3. Check Communication Zone (hands up):
-   left_engaged = (left_shoulder.y - 0.2 < left_wrist.y < left_shoulder.y + 0.1)
-   right_engaged = (right_shoulder.y - 0.2 < right_wrist.y < right_shoulder.y + 0.1)
+  left_engaged = (left_shoulder.y - 0.2 < left_wrist.y < left_shoulder.y + 0.1)
+  right_engaged = (right_shoulder.y - 0.2 < right_wrist.y < right_shoulder.y + 0.1)
    
-   hands_in_zone = (left_engaged OR right_engaged)
+  hands_in_zone = (left_engaged OR right_engaged)
    
 4. Engagement Scoring:
-   engagement [frame] = is_forward AND hands_in_zone
+  engagement [frame] = is_forward AND hands_in_zone
    
 5. Classification:
-   engagement_percent = (engaged_frames / total_frames) × 100
+  engagement_percent = (engaged_frames / total_frames) × 100
    
-   if engagement_percent >= 45%:
-       return 'Normal'
-   return 'Low'
+  if engagement_percent >= 45%:
+     return 'Normal'
+  return 'Low'
 ```
 
 **Output:** Normal/Low (Binary)
@@ -613,50 +613,50 @@ Restricted range of emotional expressions is associated with autism. This detect
 **Algorithm:**
 ```
 1. Extract Expression Landmarks:
-   left_eye_top = landmark 159
-   left_eye_bottom = landmark 145
-   right_eye_top = landmark 386
-   right_eye_bottom = landmark 374
-   mouth_left = landmark 61
-   mouth_right = landmark 291
-   mouth_top = landmark 13
-   mouth_bottom = landmark 14
+  left_eye_top = landmark 159
+  left_eye_bottom = landmark 145
+  right_eye_top = landmark 386
+  right_eye_bottom = landmark 374
+  mouth_left = landmark 61
+  mouth_right = landmark 291
+  mouth_top = landmark 13
+  mouth_bottom = landmark 14
    
 2. Calculate Metrics:
-   left_eye_opening = distance(left_eye_top - left_eye_bottom)
-   right_eye_opening = distance(right_eye_top - right_eye_bottom)
-   avg_eye_opening = (left + right) / 2
+  left_eye_opening = distance(left_eye_top - left_eye_bottom)
+  right_eye_opening = distance(right_eye_top - right_eye_bottom)
+  avg_eye_opening = (left + right) / 2
    
-   mouth_width = distance(mouth_left - mouth_right)
-   mouth_height = distance(mouth_top - mouth_bottom)
+  mouth_width = distance(mouth_left - mouth_right)
+  mouth_height = distance(mouth_top - mouth_bottom)
    
 3. Classify Expression for Each Frame:
-   if mouth_height > 0.03 AND mouth_width > 0.08:
-       emotion = 'joy'
-   elif avg_eye_opening > 0.025 AND mouth_height > 0.025:
-       emotion = 'surprise'
-   elif mouth_height < 0.01 AND avg_eye_opening < 0.015:
-       emotion = 'sadness'
-   else:
-       emotion = 'neutral'
+  if mouth_height > 0.03 AND mouth_width > 0.08:
+     emotion = 'joy'
+  elif avg_eye_opening > 0.025 AND mouth_height > 0.025:
+     emotion = 'surprise'
+  elif mouth_height < 0.01 AND avg_eye_opening < 0.015:
+     emotion = 'sadness'
+  else:
+     emotion = 'neutral'
        
 4. Build emotion sequence across video:
-   emotion_sequence = [emotions for each frame]
-   emotion_counts = count each emotion type
+  emotion_sequence = [emotions for each frame]
+  emotion_counts = count each emotion type
    
 5. Shannon Entropy Calculation:
-   - Entropy measures diversity
-   - Higher entropy = more varied emotions
-   - Formula: H = -Σ(p_i × log2(p_i))
-   - p_i = probability of emotion i
+  - Entropy measures diversity
+  - Higher entropy = more varied emotions
+  - Formula: H = -Σ(p_i × log2(p_i))
+  - p_i = probability of emotion i
    
-   entropy = calculate_shannon_entropy(emotion_probs)
-   unique_emotions = count(emotions with non-zero probability)
+  entropy = calculate_shannon_entropy(emotion_probs)
+  unique_emotions = count(emotions with non-zero probability)
    
 6. Classification:
-   if unique_emotions >= 3 AND entropy > 1.0:
-       return 'Normal'
-   return 'Low'
+  if unique_emotions >= 3 AND entropy > 1.0:
+     return 'Normal'
+  return 'Low'
 ```
 
 **Output:** Normal/Low (Binary)
